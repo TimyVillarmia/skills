@@ -1,6 +1,6 @@
 ---
 name: dotnet-scaffold
-description: Scaffold a new .NET solution, project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project, new entity, or CQRS/Vertical Slice feature. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
+description: Scaffold a new .NET solution, project, test project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project, new test project, new entity, or CQRS/Vertical Slice feature. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
 license: MIT
 metadata:
   author: Timy
@@ -83,6 +83,33 @@ Do not ask for approval before using an existing dependency. For a new dependenc
 Generate only what the requirements call for, matching established conventions.
 
 For a new solution/project, create the required solution/project files and only the infrastructure needed to make the intended application shape coherent.
+
+#### Test Project Scaffolding Archetype
+When scaffolding a new test project (e.g. `tests/<Project>.IntegrationTests`), follow these defaults:
+- **Primary Framework Default:** `MSTest.Sdk` (MTP-native, Native AOT ready).
+- **Alternative Framework:** `xUnit v3` (for existing xUnit repositories or constructor fixture preferences).
+- **Persistence Testing Standard:** Always include `Testcontainers` (e.g. `Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` for relational database integration tests. Never scaffold tests using in-memory EF Core providers.
+
+```xml
+<!-- Default: MSTest.Sdk Integration Test Project -->
+<Project Sdk="MSTest.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
+    <PackageReference Include="Respawn" Version="6.2.1" />
+    <PackageReference Include="FluentAssertions" Version="8.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+For detailed fixture and lifecycle patterns, see `skills/dotnet/references/testing.md`.
 
 For a feature/entity, generate the applicable parts of the feature such as:
 

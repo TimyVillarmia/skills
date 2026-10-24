@@ -42,6 +42,7 @@ Comprehensive engineering rules and task routing for modern .NET and C#:
 - **`architecture.md`:** Vertical Slice architecture, CQRS boundaries, and domain encapsulation.
 - **`performance.md`:** Allocation auditing, Span/Memory usage, and BenchmarkDotNet standards.
 - **`security.md`:** Authentication, authorization, input validation, and cryptographic safety.
+- **`testing.md`:** Modern testing architecture with MSTest 3.x (`MSTest.Sdk` / MTP), xUnit v3, and mandatory Testcontainers for relational databases.
 - **`review.md`:** Structured code review checklists for .NET pull requests.
 
 ### 2. `dotnet-scaffold`

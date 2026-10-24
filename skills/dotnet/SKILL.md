@@ -49,6 +49,7 @@ Before implementation, determine the smallest set of concerns involved:
 | ASP.NET Core HTTP APIs, endpoints, contracts, OpenAPI | Read `references/api.md` when the task touches HTTP surface, status codes, validation, or API contracts |
 | Architecture, boundaries, CQRS, Vertical Slice | Read `references/architecture.md` when the task changes structure, dependency direction, or module boundaries |
 | EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, or schema evolution |
+| Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
 | Authentication, authorization, untrusted input, secrets | Read `references/security.md` when the task handles identity, access control, or attacker-reachable input |
 | Reviewing a diff, PR, or completed change | Read `references/review.md` when reviewing rather than implementing |
@@ -164,12 +165,12 @@ Security-sensitive primitives are an explicit exception: prefer established fram
 
 Choose tests by the behavior and boundary being verified:
 
-- Unit tests for pure domain/application logic and deterministic transformations.
-- Integration tests for HTTP wiring, serialization, dependency injection, authentication/authorization, and externally observable API behavior.
-- Relational database tests for behavior that depends on real database semantics when practical.
+- Unit tests for pure domain/application logic, validators, and deterministic transformations.
+- Integration tests (`WebApplicationFactory`) for HTTP routing, serialization, dependency injection, and authorization.
+- Real database persistence tests (`Testcontainers`) for behavior that depends on real relational semantics.
 - Contract tests when compatibility with external consumers is important.
 
-Do not mock EF Core into behaving like a relational database. Do not test implementation details merely to increase coverage. Test risk and behavior.
+Do not mock EF Core into behaving like a relational database, and never use in-memory EF providers for relational verification. Test risk and observable behavior. For detailed testing architecture, test framework selection, and Testcontainers setup, read `references/testing.md`.
 
 ## .NET Aspire
 
@@ -188,6 +189,8 @@ These are defaults for genuinely new projects or new architecture where the repo
 - A Result/ErrorOr-style result model for expected application failures.
 - Explicit `ToEntity()` / `ToDto()` mapping rather than mapping magic.
 - `IEndpoint` for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
+- MSTest 3.x with `MSTest.Sdk` as the primary test project default (MTP-native, Native AOT ready); xUnit v3 as the supported alternative.
+- Testcontainers for relational database and persistence testing.
 - Fewer dependencies and explicit implementations for small, non-sensitive functionality.
 
 For an existing project, follow its established architecture and dependencies. Do not introduce these defaults merely because they are preferred here.
