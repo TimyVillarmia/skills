@@ -2,3 +2,7 @@
 *.log
 *.tmp
 .cache/
+bin/
+obj/
+.serena/
+

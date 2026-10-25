@@ -4,7 +4,7 @@ description: Scaffold a new .NET solution, project, test project, or complete fe
 license: MIT
 metadata:
   author: Timy
-  version: "1.0"
+  version: "1.1"
 ---
 
 # .NET Scaffolding

@@ -4,7 +4,7 @@ description: Use when building, modifying, debugging, architecting, or reviewing
 license: MIT
 metadata:
   author: Timy
-  version: "1.0"
+  version: "1.1"
 ---
 
 # .NET Engineering
