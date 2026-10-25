@@ -20,6 +20,9 @@ Define the metric before optimizing: latency, throughput, allocation rate, CPU t
 - Prefer appropriate algorithms and data structures before micro-optimizations.
 - Avoid unnecessary allocations in hot paths.
 - Be aware of boxing, repeated string operations, temporary collections, and excessive LINQ materialization when profiling shows allocation pressure.
+- Use `FrozenDictionary<TKey, TValue>` and `FrozenSet<T>` (.NET 8+) for immutable lookup tables constructed once at startup; they provide faster reads than standard dictionaries.
+- Use `SearchValues<T>` (.NET 8/9+) for vectorized, SIMD-accelerated character, byte, and substring matching.
+- Use the `[LoggerMessage]` source generator rather than string interpolation or un-templated `ILogger` calls on frequently executed code paths.
 - Use spans, pooling, specialized collections, or lower-level APIs only when measurement demonstrates their value and the resulting complexity is justified.
 
 Readable code is normally preferable outside measured hot paths.
@@ -62,6 +65,11 @@ Avoid serializing data that clients do not need. Keep public DTOs intentional ra
 ## Caching
 
 Caching is a consistency and invalidation decision, not merely a performance toggle.
+
+For .NET 9+, prefer **`HybridCache`** (`Microsoft.Extensions.Caching.Hybrid`) for application-level data caching. It provides:
+- Two-tier caching (fast in-process L1 + distributed L2 such as Redis) in a single unified API.
+- Automatic cache stampede protection (concurrent callers await the same factory execution rather than racing).
+- Native cancellation, tag-based eviction, and serialization support.
 
 Before caching, identify:
 

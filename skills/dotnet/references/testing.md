@@ -47,7 +47,6 @@ For greenfield projects, prefer **MSTest 3.x with `MSTest.Sdk`**. It runs native
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
     <PackageReference Include="Respawn" Version="6.2.1" />
-    <PackageReference Include="FluentAssertions" Version="8.0.0" />
   </ItemGroup>
 </Project>
 ```
@@ -74,7 +73,6 @@ For repositories with established xUnit conventions, or teams that prefer constr
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
     <PackageReference Include="Respawn" Version="6.2.1" />
-    <PackageReference Include="FluentAssertions" Version="8.0.0" />
   </ItemGroup>
 </Project>
 ```
@@ -123,43 +121,20 @@ public static class DatabaseFixture
 
 ### 2. Custom `WebApplicationFactory` Integration
 
-Override the application's database configuration with the container's dynamic connection string:
+Override the application's database configuration with the container's dynamic connection string using `builder.UseSetting`:
 
 ```csharp
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
-public class CustomWebApplicationFactory<TProgram, TDbContext> : WebApplicationFactory<TProgram>
+public class CustomWebApplicationFactory<TProgram>(string connectionString) : WebApplicationFactory<TProgram>
     where TProgram : class
-    where TDbContext : DbContext
 {
-    private readonly string _connectionString;
-
-    public CustomWebApplicationFactory(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureServices(services =>
-        {
-            // Remove existing DbContext registration
-            services.RemoveAll<DbContextOptions<TDbContext>>();
-            services.RemoveAll<TDbContext>();
-
-            // Register with real container connection string
-            services.AddDbContext<TDbContext>(options =>
-                options.UseNpgsql(_connectionString));
-
-            // Ensure database schema is created/migrated once
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<TDbContext>();
-            db.Database.Migrate();
-        });
+        // Override connection string via configuration rather than mutating DI service descriptors.
+        // This preserves DbContext pooling, interceptors, and provider registrations.
+        builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
     }
 }
 ```
@@ -168,7 +143,10 @@ public class CustomWebApplicationFactory<TProgram, TDbContext> : WebApplicationF
 
 ### 3. Fast Table Truncation with Respawn
 
-Restarting containers between tests is too slow (5–10s). Re-creating database schemas between tests is also slow. Instead, use **Respawn** to truncate tables in ~5ms between test runs:
+Restarting containers between tests is too slow (5–10s). Re-creating database schemas between tests is also slow. Instead, use **Respawn** to truncate tables in ~5ms between test runs.
+
+> [!IMPORTANT]
+> When multiple test methods or classes share a single database container reset by Respawn, you must prevent parallel execution on that test suite (e.g. using `[DoNotParallelize]` in MSTest) to avoid race conditions.
 
 ```csharp
 using System.Net;
@@ -176,9 +154,10 @@ using System.Net.Http.Json;
 using Respawn;
 
 [TestClass]
+[DoNotParallelize] // Essential: prevents test concurrency races when sharing a single database reset by Respawn
 public class OrdersApiTests
 {
-    private static CustomWebApplicationFactory<Program, AppDbContext> _factory = null!;
+    private static CustomWebApplicationFactory<Program> _factory = null!;
     private static HttpClient _client = null!;
     private static Respawner _respawner = null!;
     private static string _connectionString = null!;
@@ -187,7 +166,7 @@ public class OrdersApiTests
     public static async Task ClassInit(TestContext context)
     {
         _connectionString = DatabaseFixture.ConnectionString;
-        _factory = new CustomWebApplicationFactory<Program, AppDbContext>(_connectionString);
+        _factory = new CustomWebApplicationFactory<Program>(_connectionString);
         _client = _factory.CreateClient();
 
         // Initialize Respawn checkpoint
@@ -214,11 +193,11 @@ public class OrdersApiTests
         // Act
         var response = await _client.PostAsJsonAsync("/orders", command);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        // Assert (using framework-native assertions)
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<OrderResponse>();
-        created.Should().NotBeNull();
-        created!.Quantity.Should().Be(3);
+        Assert.IsNotNull(created);
+        Assert.AreEqual(3, created.Quantity);
     }
 }
 ```
@@ -250,7 +229,7 @@ public class OrdersApiTests(CustomApiFactory factory) : IClassFixture<CustomApiF
         var client = factory.CreateClient();
         var response = await client.PostAsJsonAsync("/orders", new CreateOrderRequest("ItemA", 5));
         
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 }
 ```
@@ -279,7 +258,7 @@ public void Trial_After15Days_IsExpired()
 
     fakeTime.Advance(TimeSpan.FromDays(15));
 
-    service.IsExpired(start).Should().BeTrue();
+    Assert.IsTrue(service.IsExpired(start));
 }
 ```
 

@@ -54,9 +54,16 @@ Use this when feature cohesion and independent change are more valuable than sha
 CQRS fits naturally when commands and queries have materially different behavior, data access, performance, or models. It does not require separate databases or services.
 
 ```text
-Command -> Mediator -> Application/Domain -> Persistence
-Query   -> Mediator -> Persistence -> Projection -> DTO
+// Direct handler injection (primary default for Minimal APIs):
+Command -> Endpoint -> Handler -> Domain / Persistence
+Query   -> Endpoint -> Handler / QueryService -> Persistence -> Projection -> DTO
+
+// With in-process mediator (when cross-cutting pipeline behaviors justify it):
+Command -> Endpoint -> Mediator -> Pipeline -> Handler -> Domain / Persistence
+Query   -> Endpoint -> Mediator -> Pipeline -> Persistence -> Projection -> DTO
 ```
+
+An in-process mediator is justified when reusable cross-cutting pipeline behaviors (logging, validation, audit, unit of work) across handlers provide concrete value. When those pipeline behaviors are not needed, direct handler injection into the Minimal API endpoint is simpler, faster, and Native AOT friendly.
 
 ## Clean Architecture
 
@@ -107,14 +114,32 @@ If it merely renames `DbSet`, LINQ, and `SaveChangesAsync`, it adds indirection 
 
 ## Mapping
 
-Keep mappings explicit when they clarify transformations and boundaries. For new projects, explicit `ToEntity()` / `ToDto()` methods are a preferred default when they remain readable.
+Keep mappings explicit, compile-time verified, and aligned with domain encapsulation.
+
+### Response / Read Mapping
+For response DTOs, prefer a static factory method `From` and a reusable EF Core LINQ `Project` expression defined directly on the DTO:
 
 ```csharp
-public static UserDto ToDto(this User user) =>
-    new(user.Id, user.Email);
+public sealed record UserResponse(Guid Id, string Email, string FullName)
+{
+    // Single instance factory (e.g. after domain operations)
+    public static UserResponse From(User user) =>
+        new(user.Id, user.Email, user.FullName);
+
+    // Reusable EF Core Projection expression (zero tracking, SQL-translated)
+    public static Expression<Func<User, UserResponse>> Project =>
+        u => new UserResponse(u.Id, u.Email, u.FullName);
+}
 ```
 
-Existing projects may use Mapster, AutoMapper, or another mapper. Do not replace an established mapper without a concrete reason.
+- `UserResponse.From(user)` provides clean, discoverable single-instance mapping without polluting entity IntelliSense.
+- `UserResponse.Project` enables SQL-translated database projection without materializing full tracked entities: `db.Users.Select(UserResponse.Project).ToListAsync(ct)`.
+
+### Request / Write Path
+Command/request handlers extract properties from request DTOs and pass them to domain factory methods or constructors (e.g., `User.Create(request.Email, request.FullName, clock)`).
+
+### Automated Mapping
+When mapping large models or across multiple architectural layers, prefer compile-time Roslyn source generators such as **Riok.Mapperly**. Avoid runtime reflection-based mappers (such as AutoMapper) which incur startup/memory overhead and fail under Native AOT compilation. Existing projects may use Mapster or AutoMapper; do not replace an established mapper without a concrete reason.
 
 ## Dependency selection
 

@@ -114,6 +114,8 @@ Use spread elements (`..`) when composing collections is clearer than repeated `
 
 Be aware of target typing, allocation behavior, and the distinction between creating a new collection and using an existing collection instance. Do not claim a collection expression is faster without evidence.
 
+For immutable lookup collections built once at startup, prefer `ToFrozenDictionary()` and `ToFrozenSet()` (`System.Collections.Frozen` in .NET 8+) rather than standard `ReadOnlyDictionary` or immutable collections; they provide significantly faster lookup performance.
+
 Use the [C# language reference](https://learn.microsoft.com/dotnet/csharp/language-reference/) to verify collection-expression syntax and semantics when needed.
 
 ## Pattern matching
@@ -138,6 +140,7 @@ Treat nullable reference types as part of the type contract, not as compiler noi
 - Enable and respect nullable analysis where the repository supports it.
 - Model optional values explicitly with `T?` where appropriate.
 - Establish non-null invariants at boundaries rather than scattering null-forgiving operators (`!`).
+- Use nullability attributes (`[NotNullWhen(true)]`, `[MemberNotNull(nameof(_field))]`) on helper/guard methods to inform the compiler of custom invariants rather than silencing warnings with `!`.
 - Do not suppress warnings without understanding the invariant that makes the suppression safe.
 - Use `ArgumentNullException.ThrowIfNull` and related guard APIs when appropriate.
 
@@ -167,6 +170,8 @@ Use the [C# documentation](https://learn.microsoft.com/dotnet/csharp/) for langu
 `Span<T>`, `ReadOnlySpan<T>`, `Memory<T>`, `ArrayPool<T>`, ref structs, `ref` returns, and related low-level features are powerful tools, not default coding styles.
 
 Consider them when profiling identifies allocation, copying, parsing, serialization, or hot-loop costs that these features can address. Prefer ordinary types when they provide equivalent behavior with clearer ownership and lifetime semantics.
+
+Similarly, use `[LoggerMessage]` source generation for zero-allocation structured logging on hot paths, and `SearchValues<T>` for vectorized substring and character matching.
 
 Never use `unsafe`, stack allocation, pooling, or complex ref semantics merely to appear performant. Measure first and document non-obvious lifetime or ownership constraints.
 

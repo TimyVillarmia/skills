@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language and async, ASP.NET Core Minimal APIs/endpoints/OpenAPI, EF Core/DbContext queries and migrations, architecture/CQRS/Vertical Slice, performance, auth/authz and security, code review, or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes the symptom without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency). For creating a new solution/project/feature slice use dotnet-scaffold; for package/API evidence use dotnet-inspect; for Aspire workflows use the Aspire skill.
+description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language and async, ASP.NET Core Minimal APIs/endpoints/OpenAPI, EF Core/DbContext queries and migrations, architecture/CQRS/Vertical Slice, performance, auth/authz and security, code review, or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes the symptom without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency). For creating a new solution/project/feature slice use dotnet-scaffold; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill.
 license: MIT
 metadata:
   author: Timy
@@ -53,7 +53,7 @@ Before implementation, determine the smallest set of concerns involved:
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
 | Authentication, authorization, untrusted input, secrets | Read `references/security.md` when the task handles identity, access control, or attacker-reachable input |
 | Reviewing a diff, PR, or completed change | Read `references/review.md` when reviewing rather than implementing |
-| Finding evidence for packages, APIs, or version diffs | Use the `dotnet-inspect` skill instead of guessing |
+| Finding evidence for packages, APIs, or version diffs | Search NuGet, inspect project packages, or use official documentation |
 | .NET Aspire-specific workflow or current Aspire APIs | Use the official Aspire Agent Skill when available |
 
 If a task crosses multiple areas, read only the smallest combination of references that covers the affected decisions. Do not load unrelated references merely because they exist.
@@ -185,11 +185,11 @@ If the official Aspire skill is unavailable, follow the repository's existing As
 These are defaults for genuinely new projects or new architecture where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
 
 - CQRS where separate command/query models provide value.
-- Martinothamar.Mediator for mediator-based application flow.
+- Direct handler/use-case injection for Minimal APIs; in-process mediator (such as Martinothamar.Mediator) only when cross-cutting pipeline behaviors justify the abstraction.
 - A Result/ErrorOr-style result model for expected application failures.
-- Explicit `ToEntity()` / `ToDto()` mapping rather than mapping magic.
+- Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as Riok.Mapperly).
 - `IEndpoint` for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
-- MSTest 3.x with `MSTest.Sdk` as the primary test project default (MTP-native, Native AOT ready); xUnit v3 as the supported alternative.
+- MSTest 3.x with `MSTest.Sdk` as the primary test project default (MTP-native, Native AOT ready, native assertions); xUnit v3 as the supported alternative.
 - Testcontainers for relational database and persistence testing.
 - Fewer dependencies and explicit implementations for small, non-sensitive functionality.
 

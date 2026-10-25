@@ -84,6 +84,50 @@ Generate only what the requirements call for, matching established conventions.
 
 For a new solution/project, create the required solution/project files and only the infrastructure needed to make the intended application shape coherent.
 
+#### Greenfield Solution Archetype
+When creating a new repository or multi-project solution from scratch:
+- **Solution Format**: Prefer modern XML-based `.slnx` for .NET 9+ (`dotnet new slnx`), or standard `.sln` for .NET 8 / backward compatibility.
+- **Standard Directory Layout**:
+  ```text
+  <repo-root>/
+  ├── .editorconfig
+  ├── .gitignore
+  ├── Directory.Build.props
+  ├── Directory.Packages.props
+  ├── <SolutionName>.slnx
+  ├── src/
+  │   └── <ProjectName>/
+  └── tests/
+      └── <ProjectName>.Tests/
+  ```
+- **Central Package Management (`Directory.Packages.props`)**:
+  Enable CPM by default across multi-project solutions to eliminate package version drift:
+  ```xml
+  <Project>
+    <PropertyGroup>
+      <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+      <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- Centralized package versions; projects declare PackageReference without Version -->
+      <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
+    </ItemGroup>
+  </Project>
+  ```
+- **Global Build Policy (`Directory.Build.props`)**:
+  Enforce baseline quality and compiler options centrally:
+  ```xml
+  <Project>
+    <PropertyGroup>
+      <TargetFramework>net9.0</TargetFramework>
+      <ImplicitUsings>enable</ImplicitUsings>
+      <Nullable>enable</Nullable>
+      <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
+      <AnalysisLevel>latest-recommended</AnalysisLevel>
+    </PropertyGroup>
+  </Project>
+  ```
+
 #### Test Project Scaffolding Archetype
 When scaffolding a new test project (e.g. `tests/<Project>.IntegrationTests`), follow these defaults:
 - **Primary Framework Default:** `MSTest.Sdk` (MTP-native, Native AOT ready).
@@ -104,7 +148,6 @@ When scaffolding a new test project (e.g. `tests/<Project>.IntegrationTests`), f
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
     <PackageReference Include="Respawn" Version="6.2.1" />
-    <PackageReference Include="FluentAssertions" Version="8.0.0" />
   </ItemGroup>
 </Project>
 ```
@@ -121,6 +164,38 @@ For a feature/entity, generate the applicable parts of the feature such as:
 - persistence model/configuration where applicable
 - DI or endpoint registration where the existing project requires it
 - tests at the appropriate behavioral boundary
+
+#### Minimal API Vertical Slice Archetype
+When scaffolding a feature in a Minimal API project, co-locate the endpoint, handler, and contracts in a feature slice:
+
+```text
+Features/<Area>/<Action>/
+├── <Action>Endpoint.cs    // Route registration + endpoint mapping
+├── <Action>Request.cs     // Request DTO / parameters
+├── <Action>Handler.cs     // Use-case logic & domain execution
+└── <Action>Response.cs    // Response DTO with static From factory & Project expression
+```
+
+**Example (`Features/Orders/CreateOrder/CreateOrderEndpoint.cs`):**
+```csharp
+public static class CreateOrderEndpoint
+{
+    public static void Map(IEndpointRouteBuilder app) =>
+        app.MapPost("/orders", async (
+            CreateOrderRequest request,
+            CreateOrderHandler handler,
+            CancellationToken ct) =>
+        {
+            var result = await handler.HandleAsync(request, ct);
+            return result.Match(
+                order => TypedResults.Created($"/orders/{order.Id}", OrderResponse.From(order)),
+                error => TypedResults.Problem(statusCode: 400, detail: error.Message));
+        })
+        .WithName("CreateOrder")
+        .WithOpenApi();
+}
+```
+Direct handler injection keeps the endpoint thin, Native AOT compatible, and eliminates in-process mediator overhead.
 
 Do not generate ceremony merely because a reference template contains it. Do not overwrite existing files or conventions without a concrete reason.
 

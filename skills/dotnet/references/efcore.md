@@ -11,7 +11,8 @@ Use this reference when working with Entity Framework Core, relational persisten
 
 Treat `DbContext` as a short-lived unit of work and use dependency injection with the lifetime appropriate to the application model. Never share a context concurrently across unrelated operations.
 
-For background services or parallel work, create an explicit scope/context per unit of work rather than reusing a request-scoped context.
+- For high-throughput Web APIs, consider `AddDbContextPool<TContext>` to reduce per-request context instantiation allocations.
+- For background services, message consumers, or parallel tasks, inject `IDbContextFactory<TContext>` and create isolated, short-lived instances via `CreateDbContextAsync()`.
 
 ## Modeling
 
@@ -24,7 +25,7 @@ Model actual domain and database constraints explicitly:
 - delete behavior
 - unique constraints
 - value conversions
-- owned/complex types where appropriate
+- complex types (`[ComplexType]` in EF Core 8+) for domain value objects (e.g. `Address`, `Money`) that lack independent identity; prefer them over legacy owned entity types (`[Owned]`) as they do not require synthetic keys or trigger unintended table-splitting behaviors.
 
 Prefer database-enforced constraints for invariants that must hold regardless of application path.
 
@@ -165,6 +166,10 @@ When choosing a migration strategy, consider:
 Avoid relying on multiple application instances racing to apply migrations unless the chosen mechanism and database provider make that behavior safe and intentional.
 
 If a dedicated migration service or Aspire orchestration is already used by the repository, follow that established deployment pattern rather than introducing a second migration mechanism.
+
+### Compiled models
+
+For applications with large DbContext models, container environments prioritizing sub-second cold starts, or Native AOT targets, generate compiled models via `dotnet ef dbcontext optimize`. This shifts runtime model-discovery and building costs to build/pre-deployment time.
 
 ## Raw SQL
 

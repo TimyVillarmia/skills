@@ -92,7 +92,7 @@ If the application uses a Result/ErrorOr-style model, translate expected applica
 
 ```csharp
 return result.Match(
-    success => TypedResults.Ok(success.ToDto()),
+    success => TypedResults.Ok(UserResponse.From(success)),
     error => error.Type switch
     {
         ErrorType.NotFound => TypedResults.NotFound(),
@@ -141,6 +141,11 @@ For collections:
 - avoid arbitrary database expressions from clients
 
 Offset pagination is simple and often sufficient. Keyset/cursor pagination is worth considering for large or frequently changing datasets.
+
+## Output caching and anti-forgery
+
+- **Output Caching (`app.UseOutputCache()`)**: For caching HTTP responses on the server side in modern ASP.NET Core (.NET 8/9/10), prefer Output Caching over legacy `ResponseCaching`. Output Caching supports lock-free Redis backends, fine-grained cache eviction policies, and cache tagging (`Tag("users")`).
+- **Minimal API Anti-Forgery**: Endpoints accepting HTML form posts should enforce anti-forgery using `.RequireAntiforgery()` or the `[ValidateAntiForgeryToken]` attribute.
 
 ## Idempotency, retries, and concurrency
 
