@@ -60,7 +60,7 @@ When adding a test project to an existing solution:
 - **Default Test Framework:** Current `MSTest.Sdk` (MTP-native, standalone executable). Reference `assets/TestProject.csproj`.
 - **Alternative Framework:** `xUnit v3` for existing xUnit solutions.
 - **Relational Persistence (Conditional):** Include `Testcontainers` (`Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` **only** when the project uses relational persistence.
-- **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider**.
+- **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider** because in-memory providers do not enforce relational constraints, transactions, or SQL semantics.
 
 ### 4. Scaffold Feature / Vertical Slice
 When adding a feature to a Minimal API project without prior conventions, use the slice template in `assets/SliceTemplate/`:

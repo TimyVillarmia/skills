@@ -143,13 +143,13 @@ When mapping large models or across multiple architectural layers, prefer compil
 
 ## Dependency selection
 
-Apply the dependency decision order from the main `.NET Engineering` skill: prefer platform capabilities and existing project dependencies, then consider a small explicit implementation for simple non-sensitive functionality, and finally evaluate a new third-party dependency when its value justifies the added cost.
+Apply the authoritative [Dependency decisions](../SKILL.md#dependency-decisions) order from the main `.NET Engineering` skill: prefer platform capabilities and existing project dependencies, then consider a small explicit implementation for simple non-sensitive functionality, and finally evaluate a new third-party dependency when its value justifies the added cost.
 
 For architecture-specific decisions, consider whether the dependency creates a meaningful boundary, introduces coupling or lock-in, changes deployment/ownership concerns, or materially reduces complexity.
 
 Do not introduce a new dependency merely to satisfy an architectural preference. Follow the main skill's interactive/headless approval rule before adding one.
 
-Never implement security-sensitive primitives yourself merely to avoid a package.
+Do not implement security-sensitive primitives (cryptography, token parsing, password hashing) yourself merely to avoid a package; custom implementations frequently introduce subtle vulnerabilities.
 
 ## Architecture anti-patterns
 

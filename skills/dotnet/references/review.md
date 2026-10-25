@@ -125,13 +125,22 @@ These are review signals, not automatic findings. Confirm the actual impact firs
 
 ## Review output
 
-Each finding should state:
+Structure each finding using this exact output contract:
 
-1. What is wrong.
-2. Why it matters.
-3. Where it occurs.
-4. A concrete remediation when reasonably clear.
+- **Severity:** `Critical` | `High` | `Medium` | `Low`
+- **Location:** `<file-path>:<line-number>` (or symbol/method name)
+- **Finding:** Concise statement of what is wrong.
+- **Evidence:** Concrete explanation of why it matters, including failure mode, security risk, query execution plan, or race condition.
+- **Recommended Fix:** Drop-in code snippet or specific remediation instructions.
+
+Example:
+
+- **Severity:** High
+- **Location:** `src/Catalog/Endpoints/GetProductEndpoint.cs:24`
+- **Finding:** Mass assignment vulnerability via direct binding to EF Core entity.
+- **Evidence:** Client payload binds directly to the tracked `Product` entity, enabling callers to overwrite sensitive internal properties (e.g., `IsPublished`, `Price`).
+- **Recommended Fix:** Bind to an explicit `UpdateProductRequest` record and map only allowed fields to the tracked entity.
 
 Prefer a small number of high-confidence findings over speculative concerns.
 
-If no substantive problems are found, say so clearly after actually reviewing the full change and relevant context.
+If no substantive problems are found, state so clearly after reviewing the full change and relevant context.

@@ -172,7 +172,7 @@ Choose tests by the behavior and boundary being verified:
 - Real database persistence tests (`Testcontainers`) for behavior that depends on real relational semantics.
 - Contract tests when compatibility with external consumers is important.
 
-Do not mock EF Core into behaving like a relational database, and never use in-memory EF providers for relational verification. Test risk and observable behavior. For detailed testing architecture, test framework selection, and Testcontainers setup, read `references/testing.md`.
+Do not mock EF Core into behaving like a relational database, and do not use in-memory EF providers for relational verification because in-memory providers do not enforce relational constraints, transactions, or SQL semantics. Test risk and observable behavior. For detailed testing architecture, test framework selection, and Testcontainers setup, read `references/testing.md`.
 
 ## .NET Aspire
 
@@ -207,6 +207,12 @@ After changes, validate proportionally to risk:
 4. Verify API contracts, database behavior, migrations, or security behavior when affected.
 5. Review the final diff for unintended changes, unnecessary complexity, and regressions.
 6. If performance is relevant, compare measurements before and after.
+
+When reporting validation results, use this structured contract:
+- **Build:** Status (`Pass` / `Fail` / `Skipped`), configuration (`Debug` / `Release`), warnings count, errors count.
+- **Tests:** Executed count, passed count, failed count, framework/runner used.
+- **Unverified Checks:** Checks that could not be run (e.g., Docker/Testcontainers when Docker daemon is absent) and explicit reason.
+- **Diff Review:** Summary of changes made and confirmation of no unintended edits.
 
 Do not claim a change is verified when the relevant validation was not actually performed. Report checks that could not be run and why.
 

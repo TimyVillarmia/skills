@@ -9,7 +9,7 @@ Use this reference when working with Entity Framework Core, relational persisten
 
 ## DbContext
 
-Treat `DbContext` as a short-lived unit of work and use dependency injection with the lifetime appropriate to the application model. Never share a context concurrently across unrelated operations.
+Treat `DbContext` as a short-lived unit of work and use dependency injection with the lifetime appropriate to the application model. Never share a context instance concurrently across unrelated operations because `DbContext` is not thread-safe; concurrent access causes unhandled state exceptions or silent data corruption.
 
 - For high-throughput Web APIs, consider `AddDbContextPool<TContext>` to reduce per-request context instantiation allocations.
 - For background services, message consumers, or parallel tasks, inject `IDbContextFactory<TContext>` and create isolated, short-lived instances via `CreateDbContextAsync()`.

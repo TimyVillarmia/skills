@@ -250,7 +250,7 @@ public class OrdersApiTests(CustomApiFactory factory) : IClassFixture<CustomApiF
 
 ## Deterministic time testing
 
-Never use `DateTime.UtcNow` in business logic:
+Avoid calling `DateTime.UtcNow` directly in business logic because it introduces non-deterministic test behavior. Inject `TimeProvider` instead so that time-dependent logic (deadlines, expirations, schedules) can be deterministically controlled in tests with `FakeTimeProvider`:
 
 ```csharp
 // In production service:

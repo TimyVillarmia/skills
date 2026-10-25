@@ -81,7 +81,7 @@ public static partial class LogMessages
 
 ## Health Checks: Liveness vs Readiness
 
-Configure separate probes for Kubernetes and container runtimes. Never query external dependencies in liveness probes.
+Configure separate probes for Kubernetes and container runtimes. Never query external dependencies in liveness probes; doing so causes cascading pod restarts and cluster instability when a downstream dependency experiences transient latency. Query external dependencies in readiness probes instead.
 
 ```csharp
 builder.Services.AddHealthChecks()
