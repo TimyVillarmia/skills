@@ -84,11 +84,67 @@ Typical status codes:
 
 Do not select a status code merely because an internal exception or framework type has a particular name.
 
-## ProblemDetails and errors
+## ProblemDetails and Error Handling Pipeline
 
-For HTTP APIs, use a consistent error representation. `ProblemDetails` is the standard ASP.NET Core-friendly mechanism for many APIs and aligns with RFC 9457.
+For HTTP APIs, use RFC 9457 / RFC 7807 `ProblemDetails` as the uniform error representation.
 
-If the application uses a Result/ErrorOr-style model, translate expected application failures at the HTTP boundary using explicit result types:
+### Centralized Exception Handling with `IExceptionHandler`
+Configure centralized exception handling rather than catching unexpected exceptions in endpoints:
+
+```csharp
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        ctx.ProblemDetails.Instance = $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}";
+        ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
+    };
+});
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+app.UseExceptionHandler(); // Invokes registered IExceptionHandler chain
+```
+
+#### Exception Handler Implementation:
+```csharp
+public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        logger.LogError(exception, "Unhandled exception occurred: {Message}", exception.Message);
+
+        var problemDetails = new ProblemDetails
+        {
+            Status = exception switch
+            {
+                BadHttpRequestException => StatusCodes.Status400BadRequest,
+                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+                _ => StatusCodes.Status500InternalServerError
+            },
+            Title = exception switch
+            {
+                BadHttpRequestException => "Bad Request",
+                UnauthorizedAccessException => "Unauthorized",
+                _ => "Internal Server Error"
+            },
+            Detail = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
+                ? exception.ToString()
+                : "An unexpected error occurred."
+        };
+
+        httpContext.Response.StatusCode = problemDetails.Status.Value;
+        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        return true;
+    }
+}
+```
+
+### Result-to-HTTP Status Code Mapping
+If the application uses a Result/ErrorOr-style model, translate expected domain failures at the endpoint boundary into explicit typed HTTP results:
 
 ```csharp
 return result.Match<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpResult>>(
@@ -97,11 +153,45 @@ return result.Match<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpRes
     {
         ErrorType.NotFound => TypedResults.NotFound(),
         ErrorType.Conflict => TypedResults.Conflict(),
-        _ => TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, detail: error.Description, title: error.Code)
+        _ => TypedResults.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            detail: error.Description,
+            title: error.Code)
     });
 ```
 
-Keep unexpected exceptions on centralized exception-handling paths. Do not catch every exception in every endpoint just to turn it into a result.
+---
+
+## API Versioning
+
+Use `Asp.Versioning.Http` for Minimal API versioning. Define versions through route sets:
+
+```csharp
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
+var versionSet = app.NewApiVersionSet()
+    .HasApiVersion(new ApiVersion(1, 0))
+    .HasApiVersion(new ApiVersion(2, 0))
+    .ReportApiVersions()
+    .Build();
+
+var orders = app.MapGroup("/api/v{version:apiVersion}/orders")
+    .WithApiVersionSet(versionSet);
+
+orders.MapGet("/", GetOrdersV1).MapToApiVersion(1, 0);
+orders.MapGet("/", GetOrdersV2).MapToApiVersion(2, 0);
+```
+
+---
 
 ## Validation
 

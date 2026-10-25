@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language and async, ASP.NET Core Minimal APIs/endpoints/OpenAPI, EF Core/DbContext queries and migrations, architecture/CQRS/Vertical Slice, performance, auth/authz and security, code review, or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes the symptom without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency). For creating a new solution/project/feature slice use dotnet-scaffold; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill.
+description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency). For creating a new solution, project, or feature slice use dotnet-scaffold; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
 license: MIT
 metadata:
   author: Timy
@@ -45,10 +45,12 @@ Before implementation, determine the smallest set of concerns involved:
 
 | Task involves | Action |
 |---|---|
-| C# syntax, idioms, type-system design, async patterns, or modernization | Read `references/csharp.md` when the task depends on language behavior or version-sensitive syntax |
-| ASP.NET Core HTTP APIs, endpoints, contracts, OpenAPI | Read `references/api.md` when the task touches HTTP surface, status codes, validation, or API contracts |
+| C# syntax, idioms, type-system design, async patterns, AOT, or modernization | Read `references/csharp.md` when the task depends on language behavior, source generators, or version-sensitive syntax |
+| ASP.NET Core HTTP APIs, endpoints, OpenAPI, error handling | Read `references/api.md` when the task touches HTTP surface, status codes, problem details, exception handlers, or API contracts |
+| Observability, OpenTelemetry, metrics, structured logs, health checks | Read `references/observability.md` when configuring tracing, metrics, LoggerMessage, data redaction, or health endpoints |
+| Background work, hosted services, periodic jobs, channels | Read `references/hosted-services.md` when implementing BackgroundService, periodic timers, producer/consumer channels, or shutdown lifecycles |
 | Architecture, boundaries, CQRS, Vertical Slice | Read `references/architecture.md` when the task changes structure, dependency direction, or module boundaries |
-| EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, or schema evolution |
+| EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, outbox, or schema evolution |
 | Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
 | Authentication, authorization, untrusted input, secrets | Read `references/security.md` when the task handles identity, access control, or attacker-reachable input |
@@ -123,7 +125,7 @@ When designing endpoints, read `references/api.md`.
 
 For application configuration, prefer modern .NET configuration and Options patterns rather than scattering ad hoc `IConfiguration` access throughout application code. Choose the appropriate options lifetime and validation behavior for the configuration's semantics, and validate required configuration early when appropriate.
 
-For hosted/background work, account for cancellation, graceful shutdown, service lifetimes and scoped dependencies, exception behavior, retries, and overlap/concurrency requirements. Follow the repository's established hosting pattern rather than introducing infrastructure without a concrete need.
+For hosted/background work, account for cancellation, graceful shutdown, service lifetimes and scoped dependencies, exception behavior, retries, and overlap/concurrency requirements. Read `references/hosted-services.md` when designing background workers or pipeline channels. Follow the repository's established hosting pattern rather than introducing infrastructure without a concrete need.
 
 ## Implementation guidance
 

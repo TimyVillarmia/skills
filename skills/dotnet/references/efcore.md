@@ -39,6 +39,22 @@ Evaluate capabilities against the project's EF Core target version:
 | **Owned Entities (`[Owned]` / `OwnsOne` / `OwnsMany`)** | Dependent concepts requiring collections (`OwnsMany`) or table splitting when targeting older EF versions | **EF Core 2.0+** | Tracked as entities with synthetic shadow keys (e.g. `OwnerId`, `Id`); can generate unexpected table-splitting queries or tracking overhead. |
 | **JSON Columns (`ToJson()`)** | Semi-structured document payloads, nested metadata, or variable aggregates | **EF Core 7+** (enhanced query translation and indexing across EF 8, 9, 10) | Stores payload in a single native JSON column. Queryable via LINQ, but schema migrations require deliberate versioning. |
 
+### Global Query Filters (Multi-Tenancy & Soft Delete)
+
+Configure query filters centrally in `OnModelCreating` to enforce soft delete and tenant boundaries automatically:
+
+```csharp
+modelBuilder.Entity<Order>()
+    .HasQueryFilter(o => !o.IsDeleted && o.TenantId == currentTenantId);
+```
+
+#### Caveats and Rules:
+1. **Leaking tenant data via `IgnoreQueryFilters()`:** Never invoke `.IgnoreQueryFilters()` on client-facing queries for multi-tenant entities. If bypassing soft-delete for admin operations, filter the tenant boundary manually.
+2. **Navigation property filtering:** EF Core applies query filters to included navigation targets. If a related entity is soft-deleted, the navigation property evaluates to `null` or an empty collection.
+3. **Dynamic parameter resolution:** Ensure the filter references a property or field on the `DbContext` instance (set via constructor dependency injection), rather than a static capture.
+
+---
+
 ## Querying
 
 Design queries around the data actually needed.
@@ -124,6 +140,13 @@ EF Core's `SaveChanges` transaction behavior is often sufficient for a single sa
 Do not wrap every operation in an explicit transaction by habit.
 
 If the configured provider/reliability strategy uses execution strategies or transient-failure retries, understand how explicit transactions interact with that strategy and use the provider/framework-recommended pattern.
+
+### Transactional Outbox Pattern
+Avoid dual-write race conditions when mutating relational state and emitting messages to an external broker. 
+
+1. Write the domain state change and an `OutboxMessage` record (containing event payload, type, and timestamp) in the **same database transaction** via `SaveChangesAsync()`.
+2. A separate background worker (`BackgroundService`) queries unprocessed outbox records, publishes them to the broker with idempotency headers, and marks them processed.
+3. This guarantees at-least-once message delivery without distributed two-phase commit transactions.
 
 ## Concurrency
 

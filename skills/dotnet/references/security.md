@@ -26,11 +26,103 @@ Authentication answers **who is the caller**. Authorization answers **what the c
 
 ## Authorization
 
-Authorize as close as practical to the protected resource and operation. Use policies, claims, roles, or resource-based authorization according to the access model.
+### Default-Deny Authorization Policy
+Enforce default-deny across the entire API by configuring `FallbackPolicy`. Endpoints that should be public must explicitly declare `.AllowAnonymous()`:
 
-For multi-tenant systems, enforce tenant boundaries server-side on every relevant access path. A client-supplied tenant identifier is not proof of access.
+```csharp
+builder.Services.AddAuthorization(options =>
+{
+    // Require authentication by default on all endpoints
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+```
 
-For APIs, distinguish `401 Unauthorized` (authentication required/invalid) from `403 Forbidden` (authenticated but not permitted).
+### Resource-Based Authorization (BOLA / IDOR Prevention)
+Role or claim checks confirm *who* the caller is, but not *whether* they own or have access to a specific record. Broken Object-Level Authorization (BOLA/IDOR) occurs when code queries an entity by ID without checking ownership.
+
+Enforce access at the resource boundary using `IAuthorizationService`:
+
+```csharp
+app.MapGet("/orders/{id:guid}", async (
+    Guid id,
+    OrderDbContext db,
+    IAuthorizationService authService,
+    ClaimsPrincipal user) =>
+{
+    var order = await db.Orders.FindAsync(id);
+    if (order is null)
+    {
+        return TypedResults.NotFound();
+    }
+
+    var authResult = await authService.AuthorizeAsync(user, order, Operations.Read);
+    if (!authResult.Succeeded)
+    {
+        return TypedResults.Forbid();
+    }
+
+    return TypedResults.Ok(OrderResponse.From(order));
+});
+```
+
+#### Authorization Handler Implementation
+```csharp
+public static class Operations
+{
+    public static readonly OperationAuthorizationRequirement Read = new() { Name = nameof(Read) };
+    public static readonly OperationAuthorizationRequirement Update = new() { Name = nameof(Update) };
+}
+
+public sealed class OrderAuthorizationHandler : AuthorizationHandler<OperationAuthorizationRequirement, Order>
+{
+    protected override Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        OperationAuthorizationRequirement requirement,
+        Order resource)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId is not null && resource.CustomerId == userId)
+        {
+            context.Succeed(requirement);
+        }
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Mass-Assignment & Over-Posting Prevention
+Never bind public HTTP request bodies directly to EF Core entities or domain models. Malicious clients can overwrite sensitive internal properties (e.g. `IsAdmin`, `AccountBalance`, `TenantId`).
+
+Always accept dedicated, flat request DTOs and explicitly copy allowed mutable fields:
+
+```csharp
+// ❌ VULNERABLE: Direct entity binding permits overwriting arbitrary database columns
+app.MapPut("/users/{id}", async (Guid id, User user, UserDbContext db) => { ... });
+
+// ✅ SECURE: Explicit request contract determines allowed mutations
+public sealed record UpdateUserRequest(string DisplayName, string PhoneNumber);
+
+app.MapPut("/users/{id:guid}", async (
+    Guid id,
+    UpdateUserRequest request,
+    UserDbContext db,
+    CancellationToken ct) =>
+{
+    var user = await db.Users.FindAsync([id], ct);
+    if (user is null) return TypedResults.NotFound();
+
+    // Explicit field assignment
+    user.DisplayName = request.DisplayName;
+    user.PhoneNumber = request.PhoneNumber;
+
+    await db.SaveChangesAsync(ct);
+    return TypedResults.NoContent();
+});
+```
+
+---
 
 ## ASP.NET Core security pipeline
 

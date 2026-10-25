@@ -220,6 +220,37 @@ Useful tools include:
 
 Do not create custom wrapper types for every primitive value unless they enforce an important invariant or clarify a meaningful domain concept.
 
+## System.Text.Json Source Generation & Native AOT
+
+When targeting Native AOT (`<PublishAot>true</PublishAot>`) or eliminating runtime reflection overhead in serialization hot paths:
+
+### 1. Source-Generated `JsonSerializerContext`
+Generate serialization metadata at compile time using `JsonSerializableAttribute`:
+
+```csharp
+[JsonSourceGenerationOptions(
+    WriteIndented = false,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(CreateOrderRequest))]
+[JsonSerializable(typeof(OrderResponse))]
+public sealed partial class AppJsonSerializerContext : JsonSerializerContext
+{
+}
+```
+
+Register the source generator context with Minimal API options:
+```csharp
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+});
+```
+
+### 2. Native AOT & Trimming Rules
+- **No un-annotated reflection:** Avoid `Assembly.Load`, `Activator.CreateInstance`, or unconstrained `MakeGenericType` that cannot be analyzed at compile time.
+- **Pay attention to trim warnings:** Resolve `IL2026` (`RequiresUnreferencedCode`) and `IL3050` (`RequiresDynamicCode`) at compile time.
+- **Prefer compile-time generators:** Use source-generated regex (`[GeneratedRegex]`), logging (`[LoggerMessage]`), and mapping tools (e.g. Riok.Mapperly) over reflection-based alternatives.
+
 ## Modernization guidance
 
 When modernizing existing C#:
