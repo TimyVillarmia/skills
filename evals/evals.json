@@ -1,0 +1,187 @@
+{
+  "description": "Evaluation prompts and objective assertions for skills in this repository",
+  "evals": [
+    {
+      "id": 1,
+      "skill_target": "dotnet",
+      "name": "ef-n-plus-one-query",
+      "prompt": "My EF Core query on Orders with OrderLines is doing N+1 selects. How should I fix the query shape?",
+      "expected_output": "Optimizes EF Core query by using AsSplitQuery or DTO projection without unnecessary tracking or N+1 queries.",
+      "expectations": [
+        "Identifies N+1 query cause when loading collections",
+        "Recommends explicit projection (Select) or AsSplitQuery() rather than naive Include",
+        "Notes trade-offs of split queries (inconsistent snapshots across splits) vs single queries (cartesian explosion)",
+        "Recommends AsNoTracking() for read-only scenarios"
+      ]
+    },
+    {
+      "id": 2,
+      "skill_target": "dotnet",
+      "name": "security-bola-and-mass-assignment",
+      "prompt": "Review and fix this endpoint where users fetch and update documents by ID: app.MapPut(\"/documents/{id}\", async (Guid id, Document doc, AppDbContext db) => { var existing = await db.Documents.FindAsync(id); if (existing == null) return Results.NotFound(); db.Entry(existing).CurrentValues.SetValues(doc); await db.SaveChangesAsync(); return Results.Ok(existing); });",
+      "expected_output": "Identifies mass assignment and BOLA vulnerabilities, replacing entity binding with explicit DTO and enforcing user/tenant boundary checks.",
+      "expectations": [
+        "Identifies BOLA / broken object-level authorization (any authenticated user can update any document ID)",
+        "Identifies mass-assignment risk from binding untrusted body directly to Document entity",
+        "Replaces direct entity binding with an explicit request record/DTO (e.g., UpdateDocumentRequest)",
+        "Enforces server-side authorization check against user identity (ClaimTypes.NameIdentifier or IAuthorizationService) before modifying resource",
+        "Uses typed Results (Results<Ok<DocumentResponse>, NotFound, ForbidHttpResult>)"
+      ]
+    },
+    {
+      "id": 3,
+      "skill_target": "dotnet",
+      "name": "existing-project-conventions-mediatr-controllers",
+      "prompt": "Add a new endpoint to this existing API to fetch user profile details. The codebase uses MVC Controllers, MediatR requests/handlers, and FluentValidation everywhere.",
+      "expected_output": "Follows existing project architecture (Controllers + MediatR + FluentValidation) rather than forcing Minimal APIs or IEndpoint.",
+      "expectations": [
+        "Follows existing repository conventions using ControllerBase and [HttpGet]",
+        "Uses MediatR IRequest<T> and IRequestHandler<T, R> matching project pattern",
+        "Does NOT introduce IEndpoint, Martinothamar.Mediator, or Minimal APIs",
+        "Preserves existing error handling and validator conventions"
+      ]
+    },
+    {
+      "id": 4,
+      "skill_target": "dotnet",
+      "name": "observability-opentelemetry-and-health-checks",
+      "prompt": "Configure OpenTelemetry metrics, high-performance structured logging with LoggerMessage, and Kubernetes liveness/readiness health check probes for our ASP.NET Core service.",
+      "expected_output": "Sets up AddOpenTelemetry, compile-time [LoggerMessage], separate /healthz/live and /healthz/ready probes with built-in JSON writer, avoiding external calls in liveness.",
+      "expectations": [
+        "Configures OpenTelemetry via builder.Services.AddOpenTelemetry() with tracing and metrics",
+        "Uses compile-time [LoggerMessage] source-generator attribute instead of template string logging",
+        "Configures separate liveness (/healthz/live) and readiness (/healthz/ready) endpoints",
+        "Explicitly avoids external database/network dependency checks in liveness probe to prevent cascade pod kills",
+        "Uses built-in JSON writer (HealthCheckOptions.ResponseWriter) rather than third-party UI packages"
+      ]
+    },
+    {
+      "id": 5,
+      "skill_target": "dotnet",
+      "name": "hosted-service-scoped-dbcontext-and-periodictimer",
+      "prompt": "Implement a background service that processes pending Outbox messages every 10 seconds using EF Core DbContext.",
+      "expected_output": "Implements BackgroundService with PeriodicTimer, creating a fresh IServiceScope per iteration to resolve DbContext safely.",
+      "expectations": [
+        "Inherits from BackgroundService and overrides ExecuteAsync(CancellationToken)",
+        "Uses PeriodicTimer instead of Thread.Sleep or naive Task.Delay",
+        "Injects IServiceScopeFactory (not DbContext directly) and creates scope inside the iteration loop",
+        "Handles OperationCanceledException when stoppingToken is cancelled for graceful shutdown",
+        "Logs exceptions inside the loop so the background worker does not crash unhandled"
+      ]
+    },
+    {
+      "id": 6,
+      "skill_target": "dotnet",
+      "name": "no-op-already-correct-service",
+      "prompt": "Review this C# service class: public sealed class UserService(TimeProvider timeProvider, ILogger<UserService> logger) { public bool IsSubscriptionActive(DateTimeOffset expiresAt) => timeProvider.GetUtcNow() < expiresAt; }. What needs to be refactored?",
+      "expected_output": "Recognizes that the service is already correct, sealed, uses primary constructors and TimeProvider properly, and makes no unnecessary changes.",
+      "expectations": [
+        "Identifies that the service already follows modern best practices (sealed, primary constructor, TimeProvider injection)",
+        "Does NOT introduce unnecessary abstractions, interfaces, or libraries",
+        "Confirms no refactoring is required"
+      ]
+    },
+    {
+      "id": 7,
+      "skill_target": "dotnet",
+      "name": "dormancy-unrelated-python-fastapi",
+      "prompt": "How do I configure SQLAlchemy async sessions with PostgreSQL in a Python FastAPI application?",
+      "expected_output": "Answers with idiomatic Python and FastAPI patterns without triggering or injecting .NET guidance.",
+      "expectations": [
+        "Does not invoke .NET/C# skills or references",
+        "Provides idiomatic asyncpg / SQLAlchemy AsyncSession code for FastAPI",
+        "Correctly uses Python async with session context manager"
+      ]
+    },
+    {
+      "id": 8,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-greenfield-webapi-solution",
+      "prompt": "Scaffold a new .NET 10 solution named StoreOps with a Web API project and an integration test project.",
+      "expected_output": "Creates complete working solution using .NET 10 LTS, Central Package Management, .slnx solution format, and MSTest.Sdk test project.",
+      "expectations": [
+        "Generates solution file with .slnx format or runs scaffold.cs",
+        "Configures Directory.Packages.props (Central Package Management) without inline versions in .csproj",
+        "Configures global.json with SDK 10.0.x and rollForward: latestFeature",
+        "Configures TestProject using MSTest.Sdk with Microsoft.Testing.Platform runner",
+        "Generated solution builds cleanly (dotnet build -c Debug and -c Release with 0 errors)",
+        "Generated tests execute and pass (dotnet test with 0 failures)"
+      ]
+    },
+    {
+      "id": 9,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-vertical-slice-minimal-api",
+      "prompt": "Scaffold a complete vertical slice for creating a customer in our Minimal API project: request, response, handler, and endpoint.",
+      "expected_output": "Generates complete slice under Features/Customers/CreateCustomer/ with IEndpoint, Request, Response, Handler, and typed Results.",
+      "expectations": [
+        "Places slice in Features/Customers/CreateCustomer/",
+        "Implements IEndpoint with Map(IEndpointRouteBuilder endpoints)",
+        "Endpoint returns typed Results<Created<CreateCustomerResponse>, ProblemHttpResult> without .WithOpenApi()",
+        "Handler is registered in dependency injection",
+        "Slice code compiles cleanly with 0 warnings and 0 errors"
+      ]
+    },
+    {
+      "id": 10,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-existing-project-controller-conventions",
+      "prompt": "Add an endpoint to scaffold a new shipment in our existing controllers-based API that uses FluentValidation and MediatR.",
+      "expected_output": "Scaffolds controller action and MediatR command handler respecting existing codebase conventions.",
+      "expectations": [
+        "Detects and respects existing controller-based architecture",
+        "Creates MediatR Command, CommandHandler, and FluentValidation AbstractValidator",
+        "Does NOT force IEndpoint or Minimal API slice template on controller project"
+      ]
+    },
+    {
+      "id": 11,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-testcontainers-integration-test-project",
+      "prompt": "Add an integration test project to our existing solution that tests PostgreSQL persistence with Testcontainers.",
+      "expected_output": "Creates MSTest.Sdk test project referencing Testcontainers.PostgreSql and Respawn, noting Docker requirements.",
+      "expectations": [
+        "Creates test project using current MSTest.Sdk",
+        "Adds Testcontainers.PostgreSql and Respawn packages via Central Package Management",
+        "Notes Docker daemon prerequisite and explicitly warns never to silently fall back to EF in-memory",
+        "Project builds and restores cleanly"
+      ]
+    },
+    {
+      "id": 12,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-unit-test-project-no-docker",
+      "prompt": "Add a unit test project to test pure domain logic in Domain.Core.",
+      "expected_output": "Creates lightweight test project without Testcontainers or database dependencies.",
+      "expectations": [
+        "Creates test project with MSTest.Sdk",
+        "Does NOT include Testcontainers, Docker packages, or Respawn for pure domain logic",
+        "Configures project to build and run standalone tests"
+      ]
+    },
+    {
+      "id": 13,
+      "skill_target": "dotnet-scaffold",
+      "name": "scaffold-no-op-completeness-check",
+      "prompt": "Check whether the Orders feature slice in Features/Orders/CreateOrder/ is missing any components.",
+      "expected_output": "Inspects existing feature slice components and verifies completeness without regenerating files.",
+      "expectations": [
+        "Inspects slice files (Endpoint, Request, Response, Handler)",
+        "Checks DI registration and endpoint mapping",
+        "Reports completeness status without blindly overwriting existing files"
+      ]
+    },
+    {
+      "id": 14,
+      "skill_target": "dotnet-scaffold",
+      "name": "dormancy-unrelated-go-service",
+      "prompt": "Scaffold a new Go microservice with Gin router and Prometheus metrics.",
+      "expected_output": "Generates Go service without activating dotnet-scaffold or executing .NET scripts.",
+      "expectations": [
+        "Does not invoke dotnet-scaffold or scaffold.cs",
+        "Answers with idiomatic Go project layout (cmd/, internal/, go.mod)",
+        "Provides Gin routing and Prometheus exporter setup"
+      ]
+    }
+  ]
+}
