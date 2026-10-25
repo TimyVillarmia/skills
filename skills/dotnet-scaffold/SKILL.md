@@ -9,299 +9,101 @@ metadata:
 
 # .NET Scaffolding
 
-Use this workflow to create a complete, working .NET solution, project, or feature. This skill owns the scaffolding workflow; when the `dotnet` skill is available, apply its general .NET engineering guidance rather than duplicating it here.
+Use this workflow to scaffold a complete, working .NET solution, project, or feature. This skill owns the scaffolding workflow; when the `dotnet` skill is available, apply its engineering guidance rather than duplicating it here.
 
 ## Scope
 
-First determine what is being scaffolded:
+Determine the scaffolding target:
+1. **New solution/repository** — create solution structure, central build/package policies, and initial projects.
+2. **New project** — add an application, worker, or test project to an existing solution.
+3. **New feature/entity** — add a vertical slice or feature to an existing project.
 
-1. **New solution/repository** — establish the solution and required projects.
-2. **New project** — add a project to an existing solution/repository.
-3. **New feature/entity** — add a complete vertical slice or feature to an existing project.
+Do not turn a feature request into a solution redesign. Greenfield archetypes and `assets/SliceTemplate/` apply **only** when the repository has no established convention. When working in an existing codebase, follow its existing conventions, architecture, and dependencies.
 
-Do not turn a feature-scaffolding request into a broader solution redesign. Do not impose a project template, architecture, mediator, mapper, validation library, or other dependency before inspecting requirements and the repository.
+## Prerequisites
+
+Automated scaffolding via `scripts/scaffold.cs` requires the **.NET 10 SDK or later** (for file-based C# apps and modern `slnx` solutions). Before executing, verify the installed SDK via `dotnet --version`. If running on an older SDK, stop and report the environment constraint to the user; do not guess or manually generate mismatched files.
 
 ## Workflow
 
-### 1. Understand the request
+### 1. Inspect Environment & Conventions
+Before generating code, inspect:
+- Repository instructions and conventions.
+- Installed SDK version (`dotnet --version`) and project templates (`dotnet new list`).
+- Existing target framework (`TargetFramework`) and language version (`LangVersion`).
+- Solution layout and Central Package Management (`Directory.Packages.props`).
+- Existing feature structure, DI wiring, and testing patterns.
 
-Identify the minimum information needed to scaffold correctly:
+### 2. Scaffold Greenfield Solution
+For a new solution, invoke the deterministic scaffolding script rather than re-deriving configuration:
 
-- intended application/project type and purpose
-- required capabilities and boundaries
-- feature/entity name and operations when applicable
-- persistence, external integrations, or infrastructure requirements
-- testing and deployment/runtime expectations when relevant
-
-Do not ask questions that can be answered by inspecting the repository or environment.
-
-### 2. Inspect the environment
-
-Before generating files, inspect:
-
-- repository instructions and conventions
-- installed .NET SDKs and relevant workloads/templates
-- target framework and C# language version when already established
-- solution/project structure
-- existing dependencies and package versions
-- entry points, DI/registration, endpoint organization, persistence, and test projects
-- existing architecture and representative features
-
-For a genuinely new project, establish the target SDK/framework and required capabilities before selecting the project shape.
-
-### 3. Choose the project shape and architecture
-
-Use the requirements and repository evidence to decide:
-
-- solution/project structure
-- executable/library/API/worker/web shape
-- boundaries and dependency direction
-- whether CQRS, Vertical Slice, Clean Architecture, Modular Monolith, or other patterns provide concrete value
-
-Prefer the simplest architecture that protects the real boundaries and requirements. Existing repository conventions take precedence. For a genuinely new project, apply the `dotnet` skill's personal defaults only after requirements and architecture have been established.
-
-When adding a feature to an existing project, do not introduce a new architectural style merely because it is preferred for greenfield work. Follow the existing feature structure unless the task explicitly includes an architectural change or the existing structure cannot satisfy the requirement safely.
-
-### 4. Decide dependencies
-
-Follow the dependency decision rules in the `dotnet` skill. In order:
-
-```text
-Framework/platform capability
-        ↓
-Existing project dependency
-        ↓
-Small explicit implementation for simple, non-sensitive functionality
-        ↓
-New third-party dependency when justified
+```bash
+dotnet run <path-to-skill>/scripts/scaffold.cs -- -n <SolutionName> -o <OutputDir> [--with-testcontainers]
 ```
 
-Do not ask for approval before using an existing dependency. For a new dependency, explain the trade-off and obtain approval when an interactive channel exists. In explicitly autonomous/headless execution, do not silently introduce a new third-party dependency; report the decision and alternatives if approval is unavailable.
+The script automates:
+- Modern XML solution creation (`dotnet new sln --format slnx`).
+- Tooling configuration (`global.json` pinning SDK and Microsoft.Testing.Platform runner).
+- Central Package Management (`Directory.Packages.props`) and build policies (`Directory.Build.props`).
+- Web API and test projects referencing reusable templates in `assets/`.
+- Dual-configuration verification (`dotnet build` and `dotnet test` in Debug and Release).
 
-### 5. Scaffold
+Reusable asset definitions reside in `assets/`:
+- `Directory.Build.props`: Enforces central compiler warnings and active LTS (`net10.0`).
+- `Directory.Packages.props`: Central package management skeleton.
+- `global.json`: SDK feature band and MTP runner pin.
+- `.editorconfig`: Standard .NET code formatting rules.
+- `TestProject.csproj`: Canonical `MSTest.Sdk` test project template without inline versions.
 
-Generate only what the requirements call for, matching established conventions.
+### 3. Scaffold Test Project
+When adding a test project to an existing solution:
+- **Default Test Framework:** Current `MSTest.Sdk` (MTP-native, standalone executable). Reference `assets/TestProject.csproj`.
+- **Alternative Framework:** `xUnit v3` for existing xUnit solutions.
+- **Relational Persistence (Conditional):** Include `Testcontainers` (`Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` **only** when the project uses relational persistence.
+- **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider**.
 
-For a new solution/project, create the required solution/project files and only the infrastructure needed to make the intended application shape coherent.
-
-#### Greenfield Solution Archetype
-When creating a new repository or multi-project solution from scratch:
-- **Target Framework**: Use the target framework of the existing repository or `global.json`. For greenfield projects, default to the latest LTS supported by the installed SDK (`net10.0`), as .NET 9 reaches End of Support on 2026-11-10 while .NET 10 is the active LTS.
-- **Solution Format**: Prefer modern XML-based `.slnx` (`dotnet new sln --format slnx`, supported in SDK 9.0.200+ and default in .NET 10 SDK) when supported by tooling and IDEs, or standard `.sln` when backward compatibility is required.
-- **Standard Directory Layout**:
-  ```text
-  <repo-root>/
-  ├── .editorconfig
-  ├── .gitignore
-  ├── global.json
-  ├── Directory.Build.props
-  ├── Directory.Packages.props
-  ├── <SolutionName>.slnx
-  ├── src/
-  │   └── <ProjectName>/
-  └── tests/
-      └── <ProjectName>.Tests/
-  ```
-- **SDK & Runner Pinning (`global.json`)**:
-  Pin the SDK feature band, MSTest.Sdk version, and opt into Microsoft.Testing.Platform runner mode for `dotnet test`:
-  ```json
-  {
-    "sdk": {
-      "version": "10.0.402",
-      "rollForward": "latestFeature"
-    },
-    "msbuild-sdks": {
-      "MSTest.Sdk": "3.8.2"
-    },
-    "test": {
-      "runner": "Microsoft.Testing.Platform"
-    }
-  }
-  ```
-- **Central Package Management (`Directory.Packages.props`)**:
-  Enable CPM by default across multi-project solutions to eliminate package version drift. Resolve current compatible package versions dynamically at scaffold time and record them centrally; projects declare `PackageReference` without `Version`:
-  ```xml
-  <Project>
-    <PropertyGroup>
-      <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-      <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-    </PropertyGroup>
-    <ItemGroup>
-      <!-- Centralized package versions resolved at scaffold time -->
-      <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
-    </ItemGroup>
-  </Project>
-  ```
-- **Global Build Policy (`Directory.Build.props`)**:
-  Enforce baseline quality and compiler options centrally (defaulting to the active LTS `net10.0` for greenfield):
-  ```xml
-  <Project>
-    <PropertyGroup>
-      <TargetFramework>net10.0</TargetFramework>
-      <ImplicitUsings>enable</ImplicitUsings>
-      <Nullable>enable</Nullable>
-      <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
-      <AnalysisLevel>latest-recommended</AnalysisLevel>
-    </PropertyGroup>
-  </Project>
-  ```
-
-#### Test Project Scaffolding Archetype
-When scaffolding a new test project (e.g. `tests/<Project>.IntegrationTests`), follow these defaults:
-- **Primary Framework Default:** Current `MSTest.Sdk` (resolve version via `global.json` or project Sdk attribute; MTP-native).
-- **Alternative Framework:** `xUnit v3` (for existing xUnit repositories or constructor fixture preferences).
-- **Persistence Testing Standard:** Include `Testcontainers` (e.g. `Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` when the project uses relational persistence. Never scaffold tests using in-memory EF Core providers.
-
-```xml
-<!-- Default: MSTest.Sdk Integration Test Project -->
-<!-- SDK version resolved via global.json msbuild-sdks or Sdk="MSTest.Sdk/x.y.z" -->
-<Project Sdk="MSTest.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <!-- Package versions resolved dynamically into Directory.Packages.props under CPM -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <PackageReference Include="Testcontainers.PostgreSql" />
-    <PackageReference Include="Respawn" />
-  </ItemGroup>
-</Project>
-```
-
-For detailed fixture and lifecycle patterns, see `skills/dotnet/references/testing.md`.
-
-For a feature/entity, generate the applicable parts of the feature such as:
-
-- request/command/query types
-- handler/use-case logic
-- endpoint/API contract
-- validation
-- DTOs and explicit mapping where applicable
-- persistence model/configuration where applicable
-- DI or endpoint registration where the existing project requires it
-- tests at the appropriate behavioral boundary
-
-#### Minimal API Vertical Slice Archetype
-When scaffolding a feature in a Minimal API project, co-locate the endpoint, handler, and contracts in a feature slice:
-
+### 4. Scaffold Feature / Vertical Slice
+When adding a feature to a Minimal API project without prior conventions, use the slice template in `assets/SliceTemplate/`:
 ```text
 Features/<Area>/<Action>/
-├── <Action>Endpoint.cs    // Route registration + endpoint mapping implementing IEndpoint
-├── <Action>Request.cs     // Request DTO / parameters
-├── <Action>Handler.cs     // Use-case logic & domain execution
-└── <Action>Response.cs    // Response DTO with static From factory & Project expression
+├── <Action>Endpoint.cs    // Implements IEndpoint; maps route with TypedResults
+├── <Action>Request.cs     // Input DTO / parameters
+├── <Action>Handler.cs     // Domain / use-case execution
+└── <Action>Response.cs    // Output DTO with static From factory
 ```
 
-**Example (`Features/Orders/CreateOrder/CreateOrderEndpoint.cs`):**
-```csharp
-using Microsoft.AspNetCore.Http.HttpResults;
+Key rules:
+- Endpoints implement `IEndpoint` (`Map(IEndpointRouteBuilder endpoints)`).
+- Return typed results: `Results<Created<TResponse>, ProblemHttpResult>`.
+- Inject handlers directly into endpoints; avoid mediator overhead unless justified.
+- Do not use `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
+- Follow the dependency decision order in the `dotnet` skill: framework capability -> existing dependency -> small explicit implementation -> approved third-party package.
 
-public sealed class CreateOrderEndpoint : IEndpoint
-{
-    public void Map(IEndpointRouteBuilder endpoints)
-    {
-        endpoints.MapPost("/orders", async Task<Results<Created<OrderResponse>, ProblemHttpResult>> (
-            CreateOrderRequest request,
-            CreateOrderHandler handler,
-            CancellationToken ct) =>
-        {
-            var result = await handler.HandleAsync(request, ct);
-            return result.Match<Results<Created<OrderResponse>, ProblemHttpResult>>(
-                order => TypedResults.Created($"/orders/{order.Id}", OrderResponse.From(order)),
-                error => TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, detail: error.Description, title: error.Code));
-        })
-        .WithName("CreateOrder");
-    }
-}
-```
-Register the handler and endpoint in dependency injection and startup:
-```csharp
-builder.Services.AddScoped<CreateOrderHandler>();
-// Map endpoint instance (or scan IEndpoint implementations):
-new CreateOrderEndpoint().Map(app);
-```
-Direct handler injection keeps the endpoint thin and eliminates in-process mediator overhead. Note: `.WithOpenApi()` is deprecated in .NET 10 (`ASPDEPR002`); ASP.NET Core built-in OpenAPI automatically tracks Minimal API endpoints, while `AddOpenApiOperationTransformer` handles custom metadata.
+### 5. Verify
+Always verify scaffolding with real commands:
+1. Restore dependencies: `dotnet restore`
+2. Build solution in both configurations: `dotnet build -c Debug` and `dotnet build -c Release`
+3. Run tests: `dotnet test -c Debug` and `dotnet test -c Release`
+4. Report any check that could not run.
 
-Do not generate ceremony merely because a reference template contains it. Do not overwrite existing files or conventions without a concrete reason.
+## Completeness Checklist
 
-### 6. Configure
+Verify applicable items before reporting completion:
+- [ ] Solution/project structure follows conventions (or modern archetype for greenfield)
+- [ ] Central Package Management (`Directory.Packages.props`) used; no inline package versions in `.csproj`
+- [ ] Target framework set appropriately (defaulting to installed LTS `net10.0` for greenfield)
+- [ ] Endpoint and handler contracts well-defined with cancellation token propagation
+- [ ] Result/error mapped explicitly to HTTP status codes / ProblemDetails
+- [ ] No deprecated APIs used (e.g. no `.WithOpenApi()`)
+- [ ] Test project configured with `MSTest.Sdk` or repository test standard
+- [ ] Testcontainers included conditionally only for relational persistence; Docker requirement reported
+- [ ] Solution builds and tests pass in both Debug and Release
 
-Wire the generated pieces into the application using its established conventions. Account for:
+## Reporting Contract
 
-- dependency injection
-- endpoint/route registration
-- configuration and Options patterns
-- persistence and migrations when applicable
-- serialization/OpenAPI behavior when applicable
-- local development/orchestration when the repository uses Aspire or similar tooling
-
-For Aspire-specific workflows, use the official Aspire Agent Skill when it is installed and available. Do not duplicate Aspire-specific instructions here.
-
-Keep infrastructure concerns in their appropriate project/boundary.
-
-### 7. Verify
-
-Choose verification proportional to the change. At minimum, prove that generated code is structurally valid and builds when the environment permits it.
-
-Typical verification:
-
-- restore
-- build affected project, then broader solution when warranted
-- focused tests, then broader tests when relevant
-- formatter/analyzers when appropriate
-- application startup or API smoke test for runnable applications
-- database/migration checks when persistence changed
-- inspect generated dependencies and project references
-
-Do not claim scaffolding is complete merely because files were generated. Report checks that could not be run and why.
-
-## Completeness checklist
-
-Before reporting completion, verify the applicable items:
-
-- [ ] Correct solution/project structure
-- [ ] Required application/domain components
-- [ ] Required endpoint/API surface
-- [ ] Handler/use-case implementation where applicable
-- [ ] Validation where required
-- [ ] DTO/request/response contracts where appropriate
-- [ ] Explicit mapping where the project uses it
-- [ ] Persistence configuration where applicable
-- [ ] DI/registration where required
-- [ ] `CancellationToken` propagation across meaningful async boundaries
-- [ ] Result/error to transport mapping where applicable
-- [ ] Tests for important behavior and boundaries
-- [ ] OpenAPI metadata where applicable
-- [ ] Configuration/Options wiring where applicable
-- [ ] Restore/build/tests or the appropriate verification subset passed
-- [ ] No unintended changes or unnecessary dependencies
-
-Do not require every item for every project. "Applicable" is determined by the requirements and existing architecture.
-
-## Boundaries
-
-This skill does not:
-
-- replace the `dotnet` skill's engineering guidance
-- automatically migrate an existing architecture to personal preferences
-- require a specific mediator, mapper, Result library, validation library, or architecture
-- introduce third-party dependencies silently
-- duplicate official specialized skills such as the Aspire Agent Skill
-- perform unrelated refactoring
-- replace a dedicated code-review workflow
-- require MCP servers, plugins, hooks, or other agent-specific tooling
-
-If semantic code-navigation tooling is available, prefer bounded semantic inspection for large or unfamiliar codebases when it materially improves accuracy or reduces unnecessary context. The workflow must remain useful without it.
-
-## Reporting
-
-Report:
-
-1. What was scaffolded.
-2. Key architecture/dependency decisions and any deviations from repository conventions.
-3. Files/projects added or materially changed.
-4. Verification performed and results.
-5. Any unresolved decision, failed check, or follow-up required.
+When scaffolding completes, output a structured report:
+1. **Scaffolded Scope:** Type of artifact created (solution, project, or feature slice).
+2. **Files Created / Modified:** Explicit list of created or altered files.
+3. **Architecture & Dependency Decisions:** Selected frameworks, CPM additions, or deviations from repo defaults.
+4. **Verification Results:** Logs and exit codes for `dotnet build` and `dotnet test` (Debug & Release).
+5. **Environment Constraints / Follow-ups:** Any prerequisites (e.g., Docker for Testcontainers) or manual steps required.
