@@ -28,25 +28,35 @@ Use this reference when designing, writing, repairing, or scaffolding tests in m
 
 ## Framework standards
 
-### Primary default: MSTest 3.x (`MSTest.Sdk`)
+### Primary default: current MSTest.Sdk (resolve version)
 
-For greenfield projects, prefer **MSTest 3.x with `MSTest.Sdk`**. It runs natively on the **Microsoft Testing Platform (MTP)**, compiles as a standalone executable, supports Native AOT, and eliminates runner boilerplate.
+For greenfield projects, prefer **current MSTest.Sdk**. It runs natively on the **Microsoft Testing Platform (MTP)**, compiles as a test executable, and eliminates traditional runner boilerplate.
+
+SDK version should be specified in `global.json` under `msbuild-sdks`:
+```json
+{
+  "msbuild-sdks": {
+    "MSTest.Sdk": "3.8.2"
+  }
+}
+```
+Or directly on the project root element: `<Project Sdk="MSTest.Sdk/3.8.2">`.
 
 #### Project File (`.csproj`)
 ```xml
 <Project Sdk="MSTest.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- Use repository target framework; default to active LTS net10.0 for greenfield -->
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Use MethodLevel for maximum parallel execution -->
-    <EnableMSTestRunner>true</EnableMSTestRunner>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
-    <PackageReference Include="Respawn" Version="6.2.1" />
+    <!-- Resolve compatible package versions dynamically in Directory.Packages.props under CPM -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Respawn" />
   </ItemGroup>
 </Project>
 ```
@@ -61,18 +71,20 @@ For repositories with established xUnit conventions, or teams that prefer constr
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- Use repository target framework; default to active LTS net10.0 for greenfield -->
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="1.0.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
-    <PackageReference Include="Respawn" Version="6.2.1" />
+    <!-- Resolve compatible package versions dynamically in Directory.Packages.props under CPM -->
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Respawn" />
   </ItemGroup>
 </Project>
 ```

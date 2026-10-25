@@ -92,13 +92,39 @@ Bound concurrency when fan-out can grow with input size.
 
 Do not use `Task.Run` as a generic performance fix for server-side request handling or I/O-bound work.
 
-## Benchmarking and profiling
+## Benchmarking with BenchmarkDotNet
 
-Use representative workloads. Microbenchmarks are useful for isolated hot paths but do not prove end-to-end improvements.
+Use BenchmarkDotNet for isolated microbenchmarks on CPU-bound and allocation-sensitive hot paths (e.g. parsers, serializers, string manipulations, collections).
 
-For application performance, prefer profiling, tracing, metrics, and realistic load tests where appropriate.
+### When to use
+- Measuring relative throughput or allocation diffs between algorithm alternatives.
+- Verifying zero-allocation claims on critical execution paths.
+- Do not use BenchmarkDotNet for database operations, network I/O, or end-to-end HTTP pipelines; use profiling and load testing instead.
 
-Compare before/after measurements using the same workload and environment as closely as practical.
+### Common mistakes to avoid
+1. **Running in Debug mode:** BenchmarkDotNet requires a Release build (`dotnet run -c Release`) to measure JIT-optimized code and inlining.
+2. **Omitting `[MemoryDiagnoser]`:** Always decorate benchmark classes with `[MemoryDiagnoser]` to track GC collections and allocated bytes.
+3. **Dead-code elimination:** The JIT eliminates computations whose results are never read. Always return benchmark results from the method or pass them to a consumer.
+4. **Mutating shared state:** Ensure benchmarks are idempotent; do not let iteration $N$ modify state that affects iteration $N+1$.
+
+### How to read results
+- **Mean / Median:** Average execution time. When Mean and Median diverge materially, inspect distribution skew.
+- **Error / StdDev:** Half of the 99.9% confidence interval and standard deviation. Wide error relative to the mean indicates environment noise or inconsistent execution.
+- **Allocated:** Managed memory allocated per operation. A 0 B allocation confirms zero-allocation behavior.
+
+```csharp
+[MemoryDiagnoser]
+public class ParserBenchmarks
+{
+    private string _payload = "id=123&status=active";
+
+    [Benchmark(Baseline = true)]
+    public Dictionary<string, string> ParseStandard() => ParseViaSplit(_payload);
+
+    [Benchmark]
+    public ParsedSpanResult ParseOptimized() => ParseViaSpan(_payload.AsSpan());
+}
+```
 
 ## Performance review questions
 

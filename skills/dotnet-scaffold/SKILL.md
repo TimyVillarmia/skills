@@ -86,12 +86,14 @@ For a new solution/project, create the required solution/project files and only 
 
 #### Greenfield Solution Archetype
 When creating a new repository or multi-project solution from scratch:
-- **Solution Format**: Prefer modern XML-based `.slnx` for .NET 9+ (`dotnet new slnx`), or standard `.sln` for .NET 8 / backward compatibility.
+- **Target Framework**: Use the target framework of the existing repository or `global.json`. For greenfield projects, default to the latest LTS supported by the installed SDK (`net10.0`), as .NET 9 reaches End of Support on 2026-11-10 while .NET 10 is the active LTS.
+- **Solution Format**: Prefer modern XML-based `.slnx` (`dotnet new sln --format slnx`, supported in SDK 9.0.200+ and default in .NET 10 SDK) when supported by tooling and IDEs, or standard `.sln` when backward compatibility is required.
 - **Standard Directory Layout**:
   ```text
   <repo-root>/
   ├── .editorconfig
   ├── .gitignore
+  ├── global.json
   ├── Directory.Build.props
   ├── Directory.Packages.props
   ├── <SolutionName>.slnx
@@ -100,8 +102,24 @@ When creating a new repository or multi-project solution from scratch:
   └── tests/
       └── <ProjectName>.Tests/
   ```
+- **SDK & Runner Pinning (`global.json`)**:
+  Pin the SDK feature band, MSTest.Sdk version, and opt into Microsoft.Testing.Platform runner mode for `dotnet test`:
+  ```json
+  {
+    "sdk": {
+      "version": "10.0.402",
+      "rollForward": "latestFeature"
+    },
+    "msbuild-sdks": {
+      "MSTest.Sdk": "3.8.2"
+    },
+    "test": {
+      "runner": "Microsoft.Testing.Platform"
+    }
+  }
+  ```
 - **Central Package Management (`Directory.Packages.props`)**:
-  Enable CPM by default across multi-project solutions to eliminate package version drift:
+  Enable CPM by default across multi-project solutions to eliminate package version drift. Resolve current compatible package versions dynamically at scaffold time and record them centrally; projects declare `PackageReference` without `Version`:
   ```xml
   <Project>
     <PropertyGroup>
@@ -109,17 +127,17 @@ When creating a new repository or multi-project solution from scratch:
       <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     </PropertyGroup>
     <ItemGroup>
-      <!-- Centralized package versions; projects declare PackageReference without Version -->
-      <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
+      <!-- Centralized package versions resolved at scaffold time -->
+      <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
     </ItemGroup>
   </Project>
   ```
 - **Global Build Policy (`Directory.Build.props`)**:
-  Enforce baseline quality and compiler options centrally:
+  Enforce baseline quality and compiler options centrally (defaulting to the active LTS `net10.0` for greenfield):
   ```xml
   <Project>
     <PropertyGroup>
-      <TargetFramework>net9.0</TargetFramework>
+      <TargetFramework>net10.0</TargetFramework>
       <ImplicitUsings>enable</ImplicitUsings>
       <Nullable>enable</Nullable>
       <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
@@ -130,24 +148,25 @@ When creating a new repository or multi-project solution from scratch:
 
 #### Test Project Scaffolding Archetype
 When scaffolding a new test project (e.g. `tests/<Project>.IntegrationTests`), follow these defaults:
-- **Primary Framework Default:** `MSTest.Sdk` (MTP-native, Native AOT ready).
+- **Primary Framework Default:** Current `MSTest.Sdk` (resolve version via `global.json` or project Sdk attribute; MTP-native).
 - **Alternative Framework:** `xUnit v3` (for existing xUnit repositories or constructor fixture preferences).
-- **Persistence Testing Standard:** Always include `Testcontainers` (e.g. `Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` for relational database integration tests. Never scaffold tests using in-memory EF Core providers.
+- **Persistence Testing Standard:** Include `Testcontainers` (e.g. `Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` when the project uses relational persistence. Never scaffold tests using in-memory EF Core providers.
 
 ```xml
 <!-- Default: MSTest.Sdk Integration Test Project -->
+<!-- SDK version resolved via global.json msbuild-sdks or Sdk="MSTest.Sdk/x.y.z" -->
 <Project Sdk="MSTest.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableMSTestRunner>true</EnableMSTestRunner>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
-    <PackageReference Include="Respawn" Version="6.2.1" />
+    <!-- Package versions resolved dynamically into Directory.Packages.props under CPM -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Respawn" />
   </ItemGroup>
 </Project>
 ```
@@ -170,7 +189,7 @@ When scaffolding a feature in a Minimal API project, co-locate the endpoint, han
 
 ```text
 Features/<Area>/<Action>/
-├── <Action>Endpoint.cs    // Route registration + endpoint mapping
+├── <Action>Endpoint.cs    // Route registration + endpoint mapping implementing IEndpoint
 ├── <Action>Request.cs     // Request DTO / parameters
 ├── <Action>Handler.cs     // Use-case logic & domain execution
 └── <Action>Response.cs    // Response DTO with static From factory & Project expression
@@ -178,24 +197,33 @@ Features/<Area>/<Action>/
 
 **Example (`Features/Orders/CreateOrder/CreateOrderEndpoint.cs`):**
 ```csharp
-public static class CreateOrderEndpoint
+using Microsoft.AspNetCore.Http.HttpResults;
+
+public sealed class CreateOrderEndpoint : IEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("/orders", async (
+    public void Map(IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapPost("/orders", async Task<Results<Created<OrderResponse>, ProblemHttpResult>> (
             CreateOrderRequest request,
             CreateOrderHandler handler,
             CancellationToken ct) =>
         {
             var result = await handler.HandleAsync(request, ct);
-            return result.Match(
+            return result.Match<Results<Created<OrderResponse>, ProblemHttpResult>>(
                 order => TypedResults.Created($"/orders/{order.Id}", OrderResponse.From(order)),
-                error => TypedResults.Problem(statusCode: 400, detail: error.Message));
+                error => TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, detail: error.Description, title: error.Code));
         })
-        .WithName("CreateOrder")
-        .WithOpenApi();
+        .WithName("CreateOrder");
+    }
 }
 ```
-Direct handler injection keeps the endpoint thin, Native AOT compatible, and eliminates in-process mediator overhead.
+Register the handler and endpoint in dependency injection and startup:
+```csharp
+builder.Services.AddScoped<CreateOrderHandler>();
+// Map endpoint instance (or scan IEndpoint implementations):
+new CreateOrderEndpoint().Map(app);
+```
+Direct handler injection keeps the endpoint thin and eliminates in-process mediator overhead. Note: `.WithOpenApi()` is deprecated in .NET 10 (`ASPDEPR002`); ASP.NET Core built-in OpenAPI automatically tracks Minimal API endpoints, while `AddOpenApiOperationTransformer` handles custom metadata.
 
 Do not generate ceremony merely because a reference template contains it. Do not overwrite existing files or conventions without a concrete reason.
 

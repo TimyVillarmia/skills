@@ -25,9 +25,19 @@ Model actual domain and database constraints explicitly:
 - delete behavior
 - unique constraints
 - value conversions
-- complex types (`[ComplexType]` in EF Core 8+) for domain value objects (e.g. `Address`, `Money`) that lack independent identity; prefer them over legacy owned entity types (`[Owned]`) as they do not require synthetic keys or trigger unintended table-splitting behaviors.
+- choose the appropriate value-object representation: complex types, owned entities, or JSON columns (see trade-offs below).
 
 Prefer database-enforced constraints for invariants that must hold regardless of application path.
+
+### Value Objects: Complex Types vs Owned Entities vs JSON Columns
+
+Evaluate capabilities against the project's EF Core target version:
+
+| Pattern | Best For | Version Support & Capabilities | Trade-offs & Limitations |
+|---|---|---|---|
+| **Complex Types (`[ComplexType]`)** | Value objects without independent identity (e.g. `Address`, `Money`) mapped to owner table columns | **EF Core 8+**: Introduced for flat, required value types.<br>**EF Core 9**: Added `GroupBy` and primitive collection support.<br>**EF Core 10+**: Added optional (nullable) complex properties and complex type collections. | Eliminates synthetic shadow keys and table splitting. In EF Core 8 and 9, complex types cannot be null and collections of complex types are not supported. |
+| **Owned Entities (`[Owned]` / `OwnsOne` / `OwnsMany`)** | Dependent concepts requiring collections (`OwnsMany`) or table splitting when targeting older EF versions | **EF Core 2.0+** | Tracked as entities with synthetic shadow keys (e.g. `OwnerId`, `Id`); can generate unexpected table-splitting queries or tracking overhead. |
+| **JSON Columns (`ToJson()`)** | Semi-structured document payloads, nested metadata, or variable aggregates | **EF Core 7+** (enhanced query translation and indexing across EF 8, 9, 10) | Stores payload in a single native JSON column. Queryable via LINQ, but schema migrations require deliberate versioning. |
 
 ## Querying
 

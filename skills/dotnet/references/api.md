@@ -88,16 +88,16 @@ Do not select a status code merely because an internal exception or framework ty
 
 For HTTP APIs, use a consistent error representation. `ProblemDetails` is the standard ASP.NET Core-friendly mechanism for many APIs and aligns with RFC 9457.
 
-If the application uses a Result/ErrorOr-style model, translate expected application failures at the HTTP boundary:
+If the application uses a Result/ErrorOr-style model, translate expected application failures at the HTTP boundary using explicit result types:
 
 ```csharp
-return result.Match(
+return result.Match<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpResult>>(
     success => TypedResults.Ok(UserResponse.From(success)),
     error => error.Type switch
     {
         ErrorType.NotFound => TypedResults.NotFound(),
         ErrorType.Conflict => TypedResults.Conflict(),
-        _ => TypedResults.Problem(statusCode: 400, title: error.Code)
+        _ => TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, detail: error.Description, title: error.Code)
     });
 ```
 
@@ -120,8 +120,7 @@ Keep generated documentation aligned with actual behavior. Document meaningful d
 OpenAPI version must match the target runtime and downstream tooling:
 
 - .NET 10 / ASP.NET Core 10: use OpenAPI 3.1 by default.
-- .NET 11 / ASP.NET Core 11: prefer OpenAPI 3.2 unless compatibility requires 3.1.
-- If consumers require an older compatible version, configure it deliberately rather than silently breaking them.
+- If consumers require an older compatible version (such as 3.0), configure it deliberately rather than silently breaking them.
 
 For OpenAPI 3.1+, use JSON Schema semantics correctly; do not blindly carry forward OpenAPI 3.0-era `nullable` patterns.
 
@@ -144,7 +143,7 @@ Offset pagination is simple and often sufficient. Keyset/cursor pagination is wo
 
 ## Output caching and anti-forgery
 
-- **Output Caching (`app.UseOutputCache()`)**: For caching HTTP responses on the server side in modern ASP.NET Core (.NET 8/9/10), prefer Output Caching over legacy `ResponseCaching`. Output Caching supports lock-free Redis backends, fine-grained cache eviction policies, and cache tagging (`Tag("users")`).
+- **Output Caching (`app.UseOutputCache()`)**: For caching HTTP responses on the server side in modern ASP.NET Core, prefer Output Caching over legacy `ResponseCaching`. Output Caching supports distributed backends (such as Redis or Valkey), fine-grained cache eviction policies, and cache tagging (`Tag("users")`).
 - **Minimal API Anti-Forgery**: Endpoints accepting HTML form posts should enforce anti-forgery using `.RequireAntiforgery()` or the `[ValidateAntiForgeryToken]` attribute.
 
 ## Idempotency, retries, and concurrency

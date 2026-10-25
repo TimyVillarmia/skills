@@ -189,7 +189,7 @@ These are defaults for genuinely new projects or new architecture where the repo
 - A Result/ErrorOr-style result model for expected application failures.
 - Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as Riok.Mapperly).
 - `IEndpoint` for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
-- MSTest 3.x with `MSTest.Sdk` as the primary test project default (MTP-native, Native AOT ready, native assertions); xUnit v3 as the supported alternative.
+- Current `MSTest.Sdk` (resolve version) as the primary test project default (MTP-native, native assertions); xUnit v3 as the supported alternative.
 - Testcontainers for relational database and persistence testing.
 - Fewer dependencies and explicit implementations for small, non-sensitive functionality.
 
