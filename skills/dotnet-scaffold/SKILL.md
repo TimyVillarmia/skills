@@ -26,13 +26,16 @@ Automated scaffolding via `scripts/scaffold.cs` requires the **.NET 10 SDK or la
 
 ## Workflow
 
-### 1. Inspect Environment & Conventions
+### 1. Inspect Environment & Detect Architecture
 Before generating code, inspect:
-- Repository instructions and conventions.
 - Installed SDK version (`dotnet --version`) and project templates (`dotnet new list`).
 - Existing target framework (`TargetFramework`) and language version (`LangVersion`).
 - Solution layout and Central Package Management (`Directory.Packages.props`).
-- Existing feature structure, DI wiring, and testing patterns.
+- **Detect Host Architecture:**
+  - **Vertical Slice Architecture (VSA):** Single web project or features organized under `Features/` or `Endpoints/`.
+  - **Clean Architecture (CA):** Multi-project layout containing `Domain`, `Application`, `Infrastructure`, `Api` / `Web`.
+  - **Modular Monolith:** Independent module boundaries under `src/Modules/<ModuleName>/`.
+  *Always adapt new feature code to match the host architecture. Never impose VSA on a Clean Architecture codebase or vice-versa.*
 
 ### 2. Scaffold Greenfield Solution
 For a new solution, invoke the deterministic scaffolding script rather than re-deriving configuration:
@@ -62,22 +65,38 @@ When adding a test project to an existing solution:
 - **Relational Persistence (Conditional):** Include `Testcontainers` (`Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` **only** when the project uses relational persistence.
 - **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider** because in-memory providers do not enforce relational constraints, transactions, or SQL semantics.
 
-### 4. Scaffold Feature / Vertical Slice
-When adding a feature to a Minimal API project without prior conventions, use the slice template in `assets/SliceTemplate/`:
+### 4. Scaffold Feature / Slices
+
+Generate complete feature slices conforming to the detected architecture:
+
+#### A. Vertical Slice Architecture (VSA)
+When working in a VSA project, use the slice pattern in `assets/SliceTemplate/`:
 ```text
 Features/<Area>/<Action>/
 ├── <Action>Endpoint.cs    // Implements IEndpoint; maps route with TypedResults
-├── <Action>Request.cs     // Input DTO / parameters
-├── <Action>Handler.cs     // Domain / use-case execution
+├── <Action>Request.cs     // Input DTO / parameters (sealed record)
+├── <Action>Handler.cs     // Domain / use-case execution with CancellationToken
 └── <Action>Response.cs    // Output DTO with static From factory
 ```
 
-Key rules:
-- Endpoints implement `IEndpoint` (`Map(IEndpointRouteBuilder endpoints)`).
-- Return typed results: `Results<Created<TResponse>, ProblemHttpResult>`.
-- Inject handlers directly into endpoints; avoid mediator overhead unless justified.
-- Do not use `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
-- Follow the dependency decision order in the `dotnet` skill: framework capability -> existing dependency -> small explicit implementation -> approved third-party package.
+#### B. Clean Architecture (CA)
+When working in a Clean Architecture multi-project solution, distribute feature files across layer boundaries:
+```text
+src/<App>.Domain/Entities/<Entity>.cs                           // Domain entity & business invariants
+src/<App>.Application/<Area>/<Action>/<Action>Command.cs       // Request DTO & Validator (FluentValidation)
+src/<App>.Application/<Area>/<Action>/<Action>Handler.cs       // Use-case logic (injects DbContext or domain service)
+src/<App>.Infrastructure/Persistence/Configurations/<Entity>Configuration.cs  // EF Core mapping
+src/<App>.Api/Endpoints/<Area>/<Action>Endpoint.cs             // Minimal API route mapping with TypedResults
+tests/<App>.Tests/Integration/<Area>/<Action>Tests.cs          // WebApplicationFactory + Testcontainers test
+```
+
+Key rules across all architectures:
+- Endpoints return strongly typed results: `Results<Ok<TResponse>, ProblemHttpResult>` or `Results<Created<TResponse>, ProblemHttpResult>`.
+- Request/Response types are sealed records with primary constructors.
+- Propagate `CancellationToken` through all asynchronous operations.
+- Inject `DbContext` or domain handlers directly; never wrap EF Core in generic repository layers.
+- Do not call `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
+- Follow the dependency decision order in the `dotnet` skill and check the Commercial License Watchlist.
 
 ### 5. Verify
 Always verify scaffolding with real commands:
@@ -86,18 +105,18 @@ Always verify scaffolding with real commands:
 3. Run tests: `dotnet test -c Debug` and `dotnet test -c Release`
 4. Report any check that could not run.
 
-## Completeness Checklist
+## Strict 9-Point Feature Completeness Checklist
 
-Verify applicable items before reporting completion:
-- [ ] Solution/project structure follows conventions (or modern archetype for greenfield)
-- [ ] Central Package Management (`Directory.Packages.props`) used; no inline package versions in `.csproj`
-- [ ] Target framework set appropriately (defaulting to installed LTS `net10.0` for greenfield)
-- [ ] Endpoint and handler contracts well-defined with cancellation token propagation
-- [ ] Result/error mapped explicitly to HTTP status codes / ProblemDetails
-- [ ] No deprecated APIs used (e.g. no `.WithOpenApi()`)
-- [ ] Test project configured with `MSTest.Sdk` or repository test standard
-- [ ] Testcontainers included conditionally only for relational persistence; Docker requirement reported
-- [ ] Solution builds and tests pass in both Debug and Release
+Every scaffolded feature must satisfy this checklist as a single complete unit before reporting completion:
+- [ ] **1. Request/Response DTOs:** Sealed records with primary constructors; no domain entity leakage.
+- [ ] **2. Validation:** Input validation (FluentValidation or DataAnnotations) handling edge cases.
+- [ ] **3. Business Logic:** Dedicated handler or use case executing domain behavior cleanly.
+- [ ] **4. Typed Minimal API Endpoint:** Route defined with typed results (`Results<Ok<T>, ProblemHttpResult>`).
+- [ ] **5. Cancellation:** `CancellationToken` explicitly passed to all async methods and database calls.
+- [ ] **6. Persistence:** Direct EF Core query/mapping without generic repository wrappers.
+- [ ] **7. Error Handling:** Expected failures map explicitly to RFC 7807/9457 `ProblemDetails`.
+- [ ] **8. OpenAPI:** Clean contract generated automatically (no deprecated `.WithOpenApi()`).
+- [ ] **9. Integration Test:** At least one test using `WebApplicationFactory` and real database testing (`Testcontainers`).
 
 ## Reporting Contract
 

@@ -69,7 +69,33 @@ An in-process mediator is justified when reusable cross-cutting pipeline behavio
 
 Clean Architecture is useful when dependency direction and domain isolation are important. Its value comes from controlling dependencies and protecting business rules, not from creating a fixed number of projects.
 
+A standard project layout:
+- **`Domain`:** Core business entities, value objects, exceptions, and domain events. Zero external dependencies (no EF Core, no ASP.NET Core).
+- **`Application`:** Use cases, commands, queries, handlers, DTOs, and interface abstractions. References `Domain`.
+- **`Infrastructure`:** EF Core `DbContext`, external API clients, message publishers, file storage. References `Application`.
+- **`Api` / `Host`:** Minimal API endpoints, middleware, filters, Program.cs wiring. References `Application` and `Infrastructure`.
+
 Avoid layers that contain no meaningful behavior merely to satisfy an architectural diagram. Combining Clean Architecture principles with vertical slices can be a pragmatic choice.
+
+## Modular Monolith
+
+For larger systems, group features into cohesive bounded modules (e.g. `src/Modules/Catalog`, `src/Modules/Ordering`):
+- Each module encapsulates its own data model and `DbContext`.
+- Modules do NOT reference sibling module internals or share relational tables directly.
+- Cross-module communication happens strictly via:
+  1. Strongly typed public contracts/interfaces in a shared module contract library.
+  2. Integration events published and handled asynchronously (in-process or over a message bus).
+
+## Architecture Conformance & Anti-Drift Audit
+
+Architectures rot through subtle, well-intentioned changes. Audit changes against the project's established architecture:
+
+| Architecture | Conformance Rules & Violations to Flag |
+|---|---|
+| **Vertical Slice Architecture** | Slices do not reference sibling slice files directly. Shared utilities reside in an explicit `Common` or `Shared` directory. |
+| **Clean Architecture** | `Domain` must never reference `Infrastructure`, `EntityFrameworkCore`, or `AspNetCore`. `Application` must never reference `Infrastructure` directly (only via interfaces). |
+| **Modular Monolith** | A module must never query another module's `DbContext` or domain entities directly. |
+| **Any Architecture** | Circular project references are prohibited. Generic repository wrappers around EF Core are prohibited. |
 
 ## Dependency direction
 

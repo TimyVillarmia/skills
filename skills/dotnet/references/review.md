@@ -101,15 +101,23 @@ Do not request replacement of an established dependency merely because another l
 
 ## Common anti-patterns to check
 
-❌ Blocking asynchronous work.
+❌ `async void` methods (swallows exceptions; process crash risk).
+
+❌ Blocking asynchronous work (`Task.Result`, `.Wait()`, `.GetAwaiter().GetResult()`).
+
+❌ Untestable static time calls (`DateTime.Now`, `DateTime.UtcNow`) instead of `TimeProvider`.
 
 ❌ Unbounded concurrency or unbounded collection/database queries.
 
-❌ Repeated unmanaged `HttpClient` creation.
+❌ Repeated unmanaged `new HttpClient()` creation (socket exhaustion).
 
 ❌ N+1 database queries or accidental lazy-loading loops.
 
 ❌ Generic repository abstractions that only rename EF Core.
+
+❌ Adding or bumping commercialized package traps without license clearance (MediatR 13+, FluentAssertions 8+, MassTransit 9+, AutoMapper 15+, direct Polly OSMF references).
+
+❌ Calling deprecated `.WithOpenApi()` in .NET 10 instead of relying on ASP.NET Core built-in OpenAPI.
 
 ❌ Domain/business behavior hidden in middleware, persistence hooks, or Aspire AppHost orchestration.
 

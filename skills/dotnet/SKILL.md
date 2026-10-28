@@ -83,14 +83,21 @@ Match investigation, implementation, and validation depth to scope, risk, and un
 
 Do not perform heavyweight architectural analysis or broad refactoring for a trivial change without a concrete reason.
 
-## Gotchas
+## Gotchas and Anti-Patterns
 
-- Target framework is not the language version: verify `LangVersion` and SDK defaults independently before using newer C# syntax.
-- EF Core in-memory providers are not relational substitutes: do not claim relational behavior (constraints, transactions, concurrency) is verified without a relational provider.
-- Startup migration is a deployment decision: with multiple instances, restricted DB permissions, or a pipeline that can run migrations separately, prefer an explicit migration mechanism over racing at startup.
-- `TypedResults` vs `IResult`/`Results`: follow the surrounding API's established return style; do not mix both without a reason.
-- `new HttpClient()` per request exhausts sockets: use `IHttpClientFactory` or the project's configured HTTP infrastructure.
-- Client-supplied tenant/role identifiers are not authorization proof: enforce scope server-side at the resource boundary.
+Never generate these anti-patterns:
+- **`async void`:** Swallows exceptions and cannot be awaited. Always return `Task` (or `ValueTask`) except in event handlers.
+- **Sync-over-async blocking:** `Task.Result`, `.Wait()`, or `.GetAwaiter().GetResult()` cause thread exhaustion and deadlocks in ASP.NET contexts. Await all asynchronous calls.
+- **`DateTime.Now` / `DateTime.UtcNow`:** Untestable and timezone-dependent. Inject `TimeProvider` and use `FakeTimeProvider` in tests.
+- **Direct `new HttpClient()`:** Causes socket exhaustion and ignores DNS rotation. Inject `IHttpClientFactory` or use configured typed clients.
+- **Generic Repository over EF Core:** Wraps an already robust unit of work (`DbContext`) in redundant abstraction layers. Inject `DbContext` directly into handlers.
+- **Exceptions for control flow:** Throwing exceptions for predictable outcomes (e.g., user not found) incurs heavy stack-trace overhead. Return a typed `Result` or `ErrorOr`.
+- **Target framework vs Language version:** Target framework is not language version: verify `LangVersion` and SDK defaults independently before using newer C# syntax.
+- **EF Core in-memory providers:** In-memory providers are not relational substitutes: do not claim relational behavior (constraints, transactions, concurrency) is verified without a relational provider. Use `Testcontainers`.
+- **Startup migrations:** Racing migrations across multiple instances at startup risks deployment corruption. Prefer explicit migration scripts or isolated migration bundles.
+- **`TypedResults` vs `IResult`/`Results`:** Follow the surrounding API's established return style; do not mix both without a reason.
+- **Tenant/Role security:** Client-supplied tenant/role identifiers are not authorization proof: enforce scope server-side at the resource boundary.
+- **Deprecated OpenAPI annotations:** Do not call `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
 
 ## Modern C# and .NET
 
@@ -157,6 +164,18 @@ New third-party dependency when its value justifies the added cost
 
 Before adding a new dependency, consider complexity, reliability, ecosystem support, security, performance, licensing, and migration/lock-in cost.
 
+### Commercial & Maintenance License Watchlist
+
+Several prominent .NET libraries have migrated to commercial licenses or subscription fees. Do NOT blindly add or upgrade these packages in commercial or unverified codebases without explicit user authorization:
+
+| Package | Version / Model | License / Condition | Recommended Action & Permissive Alternative |
+|---|---|---|---|
+| **MediatR** | $\ge$ 13.0 | Commercial (Lucky Penny dual license) | Prefer direct handler injection; for mediator pipelines use `Mediator.SourceGenerator` (MIT, source-generated, Native AOT) or `WolverineFx` (MIT). |
+| **FluentAssertions** | $\ge$ 8.0 | Commercial (Xeno Innovations) | Prefer MSTest native assertions or xUnit `Assert`; for fluent assertions use `Shouldly` (BSD) or `AwesomeAssertions` (Apache 2.0). |
+| **MassTransit** | $\ge$ 9.0 | Commercial | Use `WolverineFx` (MIT) or remain pinned on v8.x. |
+| **AutoMapper** | $\ge$ 15.0 | Commercial | Use compile-time `Riok.Mapperly` (Apache 2.0) or static DTO factory methods (`UserResponse.From(entity)`). |
+| **Polly / Polly.Core** | OSMF Model | $20/mo EULA if revenue $\ge \$20\text{k}$ | Avoid direct `Polly` package references. Use Microsoft's official `Microsoft.Extensions.Http.Resilience` (MIT). |
+
 For a new dependency that is not already established by the repository, explain the trade-off and ask the user before adding it unless the task explicitly requested it or the repository requires it. Do not ask before using an existing dependency.
 
 If execution is explicitly autonomous/headless and no user response is possible, do not silently introduce a new third-party dependency. Prefer an existing dependency or suitable framework capability when reasonable; otherwise stop at the dependency decision and report what is required, why it is justified, and what alternatives were considered.
@@ -187,10 +206,13 @@ If the official Aspire skill is unavailable, follow the repository's existing As
 These are defaults for genuinely new projects or new architecture where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
 
 - CQRS where separate command/query models provide value.
-- Direct handler/use-case injection for Minimal APIs; in-process mediator (such as Martinothamar.Mediator) only when cross-cutting pipeline behaviors justify the abstraction.
+- Direct handler/use-case injection for Minimal APIs; in-process mediator (such as `Mediator.SourceGenerator` or Martinothamar.Mediator) only when cross-cutting pipeline behaviors justify the abstraction.
 - A Result/ErrorOr-style result model for expected application failures.
-- Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as Riok.Mapperly).
-- `IEndpoint` for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
+- Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as `Riok.Mapperly`).
+- `IEndpoint` (or `IEndpointGroup` for route prefixes/auth grouping) for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
+- Built-in OpenAPI (`builder.Services.AddOpenApi()`) paired with `Scalar.AspNetCore` for interactive API documentation in development.
+- `Microsoft.Extensions.Http.Resilience` (`AddStandardResilienceHandler()`) for client HTTP resilience.
+- `Microsoft.Extensions.Caching.Hybrid` (`HybridCache`) for high-performance multi-tier caching with stampede protection in .NET 9+.
 - Current `MSTest.Sdk` (resolve version) as the primary test project default (MTP-native, native assertions); xUnit v3 as the supported alternative.
 - Testcontainers for relational database and persistence testing.
 - Fewer dependencies and explicit implementations for small, non-sensitive functionality.
@@ -199,11 +221,16 @@ For an existing project, follow its established architecture and dependencies. D
 
 ## Validation
 
-After changes, validate proportionally to risk:
+After changes, validate proportionally to risk using native, standalone CLI commands:
 
-1. Format/analyze the affected project when appropriate (`dotnet format --verify-no-changes`).
-2. Build the smallest useful scope first (`dotnet build <project>`), then the relevant solution when warranted.
-3. Run focused tests (`dotnet test --filter "<name>"`), followed by broader tests when practical and relevant.
+1. Format/analyze the affected project when appropriate:
+   `dotnet format --verify-no-changes`
+2. Build the smallest useful scope first, then the relevant solution when warranted:
+   `dotnet build <project-or-sln> -c Debug`
+3. Run focused tests using native CLI filter expressions, followed by broader runs:
+   - Run specific test: `dotnet test --filter "FullyQualifiedName~<ClassName>.<MethodName>"`
+   - Run specific category/trait: `dotnet test --filter "TestCategory=<Category>"`
+   - Dual-configuration verification when relevant: `dotnet test -c Debug` and `dotnet test -c Release`
 4. Verify API contracts, database behavior, migrations, or security behavior when affected.
 5. Review the final diff for unintended changes, unnecessary complexity, and regressions.
 6. If performance is relevant, compare measurements before and after.
