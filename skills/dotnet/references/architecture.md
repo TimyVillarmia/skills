@@ -167,6 +167,78 @@ Command/request handlers extract properties from request DTOs and pass them to d
 ### Automated Mapping
 When mapping large models or across multiple architectural layers, prefer compile-time Roslyn source generators such as **Riok.Mapperly**. Avoid runtime reflection-based mappers (such as AutoMapper) which incur startup/memory overhead and fail under Native AOT compilation. Existing projects may use Mapster or AutoMapper; do not replace an established mapper without a concrete reason.
 
+## Options pattern & configuration validation
+
+Treat configuration for external infrastructure and security as an invariant that must be validated at application startup.
+
+### Hard requirements for options validation
+
+- **Mandatory validation & `ValidateOnStart()`**: Any options class representing required external infrastructure or security configuration (database connection strings, identity/token secrets, third-party service URLs/keys, bounded channel capacities) **must** be validated and fail fast at startup.
+- **Optional settings**: Feature flags, internal defaults, and non-critical cosmetic settings may omit validation boilerplate if safe fallbacks exist.
+
+### Registration patterns
+
+#### 1. Standard DataAnnotations validation with startup check
+
+```csharp
+builder.Services.AddOptions<DatabaseOptions>()
+    .BindConfiguration(DatabaseOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+```
+
+```csharp
+public sealed class DatabaseOptions
+{
+    public const string SectionName = "Database";
+
+    [Required, MinLength(1)]
+    public string ConnectionString { get; init; } = string.Empty;
+
+    [Range(1, 100)]
+    public int MaxRetryCount { get; init; } = 3;
+}
+```
+
+#### 2. Native AOT & high-performance validation (`[OptionsValidator]`)
+
+Reflection-based `ValidateDataAnnotations()` triggers trimming warnings under Native AOT. For .NET 8+ and AOT applications, use compile-time source generation:
+
+```csharp
+builder.Services.AddOptions<DatabaseOptions>()
+    .BindConfiguration(DatabaseOptions.SectionName)
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
+
+[OptionsValidator]
+public partial class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
+{
+}
+```
+
+#### 3. Complex or cross-field validation
+
+When validation requires cross-property rules or custom logic, implement `IValidateOptions<T>` or use the fluent `.Validate(...)` overload:
+
+```csharp
+builder.Services.AddOptions<StorageOptions>()
+    .BindConfiguration(StorageOptions.SectionName)
+    .Validate(opts =>
+    {
+        if (opts.UseS3 && string.IsNullOrWhiteSpace(opts.BucketName))
+            return false;
+        return true;
+    }, "BucketName is required when UseS3 is true.")
+    .ValidateOnStart();
+```
+
+### Options lifetimes
+
+- `IOptions<T>`: Singleton lifetime. Evaluated once. Use for fixed application configuration and stateless services.
+- `IOptionsSnapshot<T>`: Scoped lifetime. Re-read on each HTTP request. Use when configuration changes need to take effect without restarting the process.
+- `IOptionsMonitor<T>`: Singleton lifetime with reload notifications (`OnChange`). Use in singleton background workers or long-lived caches that need real-time configuration reload.
+
 ## Dependency selection
 
 Apply the authoritative [Dependency decisions](../SKILL.md#dependency-decisions) order from the main `.NET Engineering` skill: prefer platform capabilities and existing project dependencies, then consider a small explicit implementation for simple non-sensitive functionality, and finally evaluate a new third-party dependency when its value justifies the added cost.

@@ -153,7 +153,18 @@ public class CustomWebApplicationFactory<TProgram>(string connectionString) : We
 
 ---
 
-### 3. Fast Table Truncation with Respawn
+### 3. Satisfying `ValidateOnStart()` in Integration Tests
+
+When required options enforce `ValidateOnStart()`, `WebApplicationFactory` will throw `OptionsValidationException` during host build if required keys are missing from test configuration.
+
+**Industry standard practices:**
+- **Static test defaults:** Define baseline values in `appsettings.Testing.json` (e.g. dummy external URLs, disabled telemetry, test API keys).
+- **Dynamic test values:** Inject dynamic values (e.g. Testcontainers ephemeral ports, dynamic connection strings) into the configuration pipeline via `builder.UseSetting(key, value)` or `builder.ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(...))`.
+- **Do not bypass via DI mutation:** Do not replace `IOptions<T>` in DI with mocks or unvalidated instances. Overriding through `IConfiguration` preserves the full validation lifecycle and tests the application's real configuration binding.
+
+---
+
+### 4. Fast Table Truncation with Respawn
 
 Restarting containers between tests is too slow (5–10s). Re-creating database schemas between tests is also slow. Instead, use **Respawn** to truncate tables in ~5ms between test runs.
 

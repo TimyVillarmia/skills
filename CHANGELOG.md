@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-03
+
+### Added
+- **Options Validation & Startup Enforcement (`skills/dotnet/references/architecture.md`):**
+  - Mandated fail-fast startup validation (`ValidateOnStart()`) and options validation for required external infrastructure and security configurations (connection strings, secrets, external APIs, bounded channels).
+  - Added compile-time source-generated validation (`[OptionsValidator]`) recipes for .NET 8+ and Native AOT zero-reflection startup.
+  - Added complex and cross-field options validation patterns via `IValidateOptions<T>` and `.Validate(...)`.
+- **Integration Test Guidance (`skills/dotnet/references/testing.md`):**
+  - Documented industry-standard in-memory configuration overrides (`builder.UseSetting`, `AddInMemoryCollection`) to satisfy `ValidateOnStart()` in `WebApplicationFactory` test fixtures without bypassing validation pipelines or mutating DI.
+
+### Changed
+- **Options Policy (`skills/dotnet/SKILL.md`):**
+  - Promoted options validation from advisory recommendation to hard requirement for required infrastructure/secrets while keeping optional flags exempt.
+
 ## [1.1.0] - 2026-10-25
 
 ### Added

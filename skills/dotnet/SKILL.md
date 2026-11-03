@@ -4,7 +4,7 @@ description: Use when building, modifying, debugging, architecting, or reviewing
 license: MIT
 metadata:
   author: Timy
-  version: "1.1"
+  version: "1.2"
 ---
 
 # .NET Engineering
@@ -130,7 +130,7 @@ When designing endpoints, read `references/api.md`.
 
 ## Configuration and hosted work
 
-For application configuration, prefer modern .NET configuration and Options patterns rather than scattering ad hoc `IConfiguration` access throughout application code. Choose the appropriate options lifetime and validation behavior for the configuration's semantics, and validate required configuration early when appropriate.
+For application configuration, prefer modern .NET configuration and Options patterns rather than scattering ad hoc `IConfiguration` access throughout application code. For required external infrastructure and security configuration (connection strings, secrets, external service endpoints, bounded queue capacities), options validation and fail-fast startup enforcement (`ValidateOnStart()`) are hard requirements. For .NET 8+ or Native AOT targets, prefer compile-time source-generated validation (`[OptionsValidator]`) over reflection-based DataAnnotations. Optional feature flags and internal defaults may omit validation. Read `references/architecture.md` for standard options registration patterns.
 
 For hosted/background work, account for cancellation, graceful shutdown, service lifetimes and scoped dependencies, exception behavior, retries, and overlap/concurrency requirements. Read `references/hosted-services.md` when designing background workers or pipeline channels. Follow the repository's established hosting pattern rather than introducing infrastructure without a concrete need.
 
