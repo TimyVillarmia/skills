@@ -66,3 +66,15 @@ Expected behavior:
 - Establish requirements and boundaries before selecting architecture.
 - Personal defaults may be considered when they provide concrete value.
 - Do not add dependencies or architecture merely because a template or preference exists.
+
+## Security and operational regression checks
+
+Compile examples with the target SDK and actual packages, then check these observable outcomes:
+
+- Tenant writes: attach another tenant's row ID with the caller's tenant value. Both synchronous and asynchronous updates/deletes must fail without changing the foreign row. Own-tenant writes must succeed; unresolved contexts must reject writes. Keep the same cached EF model while alternating tenants.
+- HTTP resilience: a transiently failing POST is attempted once under the sample policy; a GET retains standard retries.
+- Consumer outbox: deliver the same message ID twice within the detection window against real persistence. The configured receive endpoint must commit one consumer database effect.
+- PostgreSQL concurrency: compile the timestamp mapping against the installed Npgsql provider and verify a stale update is rejected.
+- Public probes: place secret markers in check names, descriptions, data and exceptions. The response must contain only aggregate status.
+- Foreign-key validation: commit the NOT VALID migration before validation. A separate writer must continue while the validation transaction holds its locks.
+- Focused tests: run the documented MSTest and xUnit commands in their actual SDK modes and confirm the intended nonzero selected test set.

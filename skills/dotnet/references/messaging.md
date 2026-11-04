@@ -69,10 +69,15 @@ builder.Services.AddMassTransit(x =>
         o.DuplicateDetectionWindow = TimeSpan.FromMinutes(30); // Retention window for inbox deduplication
     });
 
+    x.AddConfigureEndpointsCallback((context, name, endpoint) =>
+    {
+        endpoint.UseEntityFrameworkOutbox<AppDbContext>(context);
+    });
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host("localhost", "/", h => { h.Username("guest"); h.Password("guest"); });
-        // Automatically configures receive endpoints and attaches consumer inbox middleware
+        // Creates receive endpoints and applies the registered outbox callback.
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -104,7 +109,7 @@ Message brokers guarantee **at-least-once** delivery, not exactly-once. Network 
 
 ### Idempotency Strategies:
 1. **MassTransit Inbox (Automatic)**:
-   When `AddEntityFrameworkOutbox` is configured, MassTransit records incoming message IDs in an `InboxState` table. If a duplicate message arrives, the consumer execution is skipped automatically.
+   Configure both the persistence entities and `UseEntityFrameworkOutbox<AppDbContext>` on the receive endpoints, as above. The consumer outbox records incoming message IDs in `InboxState` and suppresses duplicates within `DuplicateDetectionWindow`. Bus outbox registration alone does not enable this protection. External side effects still need their own idempotency contract.
 2. **Database Unique Constraints**:
    Use natural database keys (e.g. `UNIQUE (PaymentId, TransactionId)`) so duplicate processing fails safely without corrupting data.
 3. **Optimistic Locking**:

@@ -101,8 +101,8 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 });
 ```
 
-### Coarse Public Health Probe (Zero Secret Exposure)
-Public orchestrator probes (`/healthz/live`, `/healthz/ready`) must return coarse statuses only. **Never expose raw exception messages, internal server names, or connection strings in unauthenticated health responses:**
+### Coarse Public Health Probe
+Public orchestrator probes (`/healthz/live`, `/healthz/ready`) should emit only the aggregate status. Keep per-check names, descriptions, data, and exception details in protected telemetry; descriptions can contain the same secrets as exception messages.
 
 ```csharp
 private static Task WriteJsonResponse(HttpContext context, HealthReport report)
@@ -110,16 +110,7 @@ private static Task WriteJsonResponse(HttpContext context, HealthReport report)
     context.Response.ContentType = "application/json";
     var response = new
     {
-        status = report.Status.ToString(),
-        totalDurationMs = report.TotalDuration.TotalMilliseconds,
-        entries = report.Entries.Select(e => new
-        {
-            name = e.Key,
-            status = e.Value.Status.ToString(),
-            durationMs = e.Value.Duration.TotalMilliseconds,
-            description = e.Value.Description
-            // NEVER include e.Value.Exception?.Message: leaks connection strings and internal credentials
-        })
+        status = report.Status.ToString()
     };
     return JsonSerializer.SerializeAsync(context.Response.Body, response);
 }

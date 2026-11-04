@@ -128,9 +128,9 @@ To prevent lost updates when multiple users edit the same entity concurrently, c
       public uint Version { get; init; }
   }
 
-  // In DbContext OnModelCreating:
-  modelBuilder.Entity<Order>().UseXminAsConcurrencyToken();
   ```
+
+  Npgsql maps the `uint` property marked `[Timestamp]` to `xmin`. The fluent alternative is `.Property(o => o.Version).IsRowVersion()`; use one mapping style supported by the installed provider.
 
 ### Handling `DbUpdateConcurrencyException`
 ```csharp

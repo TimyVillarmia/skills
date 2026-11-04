@@ -257,9 +257,7 @@ After changes, validate proportionally to risk using native, standalone CLI comm
    `dotnet format --verify-no-changes`
 2. Build the smallest useful scope first, then the relevant solution when warranted:
    `dotnet build <project-or-sln> -c Debug`
-3. Run focused tests using runner-appropriate filter syntax:
-   - VSTest / bridged MTP: `dotnet test --filter "FullyQualifiedName~<ClassName>.<MethodName>"`
-   - Native MTP runner: `dotnet test -- --treenode-filter /*/*/*<MethodName>*` (or use `run-tests` skill to resolve runner flags)
+3. Identify the SDK command mode and test framework before choosing focused-test syntax. Follow `references/testing.md` under **Running focused tests**, or use the `run-tests` skill when available.
    - Dual-configuration verification when relevant: `dotnet test -c Debug` and `dotnet test -c Release`
 4. Verify API contracts, database behavior, migrations, or security behavior when affected.
 5. Review the final diff for unintended changes, unnecessary complexity, and regressions.

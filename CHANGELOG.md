@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Enforce tenant ownership in tracked SQL update/delete predicates using a tenant concurrency token and the authorized original tenant value; apply the save guard to synchronous and asynchronous saves.
+- Disable retries for unsafe HTTP methods in the resilience example, preserving standard transient-failure handling.
+- Attach EF consumer outbox middleware explicitly to MassTransit receive endpoints.
+- Remove the unavailable Npgsql `UseXminAsConcurrencyToken()` call and document supported `uint` timestamp mapping.
+- Return only aggregate status from public health probes, excluding descriptions and other per-check diagnostics.
+- Separate PostgreSQL foreign-key addition and validation with committed migration invocations; clarify the backfill procedure's top-level transaction requirement.
+- Select focused-test commands by SDK mode and framework, with separate MSTest and xUnit native-MTP examples.
+
 ## [1.4.0] - 2026-11-04
 
 ### Security & Data Isolation Fixes

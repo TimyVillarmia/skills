@@ -91,6 +91,18 @@ For repositories with established xUnit conventions, or teams that prefer constr
 
 ---
 
+## Running focused tests
+
+Inspect `global.json`, project files and imported properties before choosing command syntax. SDK 10+ uses native MTP mode only when `global.json` selects `test.runner: Microsoft.Testing.Platform`.
+
+| Detected runner/framework | Focused command example |
+|---|---|
+| VSTest | `dotnet test Tests.csproj --filter "FullyQualifiedName~Tests.Method"` |
+| SDK 10+ native MTP / MSTest | `dotnet test --project Tests.csproj --filter "FullyQualifiedName~Tests.Method"` |
+| SDK 10+ native MTP / xUnit v3 | `dotnet test --project Tests.csproj --filter-method "Tests.Method"` |
+
+For an executable MTP bridge in VSTest command mode, pass the framework's MTP arguments after `--`; keep dotnet/MSBuild options before it. Native MTP takes those arguments directly. Tree-node filters belong to frameworks that support them, not to MTP generally. Confirm the selected run executed the intended nonzero set of tests; use the installed runner's help or `run-tests` when available.
+
 ## Persistence testing with Testcontainers
 
 When testing Entity Framework Core, Dapper, or raw SQL queries, use **Testcontainers**. It spins up an ephemeral, real Docker container for your database.

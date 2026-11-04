@@ -105,9 +105,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         {
             if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
             {
+                var entity = modelBuilder.Entity(entityType.ClrType);
+                // Include the original tenant in tracked UPDATE/DELETE predicates.
+                entity.Property<Guid>(nameof(ITenantEntity.TenantId)).IsConcurrencyToken();
                 // Configures: e => e.TenantId == this.CurrentTenantId
-                modelBuilder.Entity(entityType.ClrType)
-                    .HasQueryFilter(CreateTenantFilter(entityType.ClrType));
+                entity.HasQueryFilter(CreateTenantFilter(entityType.ClrType));
             }
         }
     }
@@ -125,22 +127,38 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
 ```
 
 ### Enforcing Tenant Boundaries on Save (`SaveChangesInterceptor`)
-Prevent client tampering and cross-tenant updates at the write boundary:
+Use the interceptor together with the `TenantId` concurrency-token configuration above. An attached object's tenant value is not proof of persisted ownership. For updates and deletes, set the original tenant value from the authorized context so EF includes it in the SQL predicate. A foreign row then affects zero rows and raises `DbUpdateConcurrencyException`.
 
 ```csharp
 public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveChangesInterceptor
 {
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        EnforceTenantBoundary(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        if (eventData.Context is null)
-            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        EnforceTenantBoundary(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
 
-        var tenantEntries = eventData.Context.ChangeTracker.Entries<ITenantEntity>().ToList();
+    private void EnforceTenantBoundary(DbContext? context)
+    {
+        if (context is null)
+            return;
+
+        var tenantEntries = context.ChangeTracker.Entries<ITenantEntity>()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToList();
         if (tenantEntries.Count == 0)
-            return base.SavingChangesAsync(eventData, result, cancellationToken);
+            return;
 
         // Fail-closed: Never allow saving tenant entities without a resolved tenant context
         if (!tenantContext.IsResolved)
@@ -158,23 +176,23 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
             }
             else if (entry.State is EntityState.Modified or EntityState.Deleted)
             {
-                // Verify the entity being modified/deleted belongs to the current tenant
                 if (entry.Entity.TenantId != tenantContext.TenantId)
                 {
-                    throw new InvalidOperationException(
-                        $"Cross-tenant write prohibited: Entity belongs to tenant '{entry.Entity.TenantId}', " +
-                        $"but ambient context is tenant '{tenantContext.TenantId}'.");
+                    throw new InvalidOperationException("Tenant ownership cannot be changed.");
                 }
 
-                // Prevent reassignment of TenantId on update
-                entry.Property(x => x.TenantId).IsModified = false;
+                var tenantProperty = entry.Property(x => x.TenantId);
+                tenantProperty.OriginalValue = tenantContext.TenantId;
+                tenantProperty.IsModified = false;
             }
         }
-
-        return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 }
 ```
+
+Register this interceptor on every tenant-scoped context. `ExecuteUpdate`, `ExecuteDelete`, and raw SQL bypass save interceptors; each such path must enforce its own authorized tenant predicate. Handle zero-row concurrency failures without retrying outside that boundary.
+
+Enforce matching tenants on tenant-owned relationships so database cascades or triggers cannot affect another tenant's untracked rows.
 
 ### Auditing `IgnoreQueryFilters()`
 ❌ **Never use `.IgnoreQueryFilters()` in normal HTTP endpoints.**

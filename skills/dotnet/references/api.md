@@ -345,10 +345,7 @@ builder.Services.AddHttpClient<InventoryClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 }).AddStandardResilienceHandler(options =>
 {
-    // Configure safe retry behavior: do not retry non-idempotent mutations blindly
-    options.Retry.ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-        .Handle<HttpRequestException>()
-        .HandleResult(response => (int)response.StatusCode >= 500);
+    options.Retry.DisableForUnsafeHttpMethods();
 });
 ```
 
@@ -361,7 +358,7 @@ The standard resilience handler executes policies in this specific order (outerm
 
 > [!WARNING]
 > **Retry Safety on Non-Idempotent Operations:**
-> By default, standard retries execute on transient HTTP 5xx responses. If an endpoint is non-idempotent (e.g. `POST /orders` or `POST /payments`), an unhandled network disconnect after server processing can result in duplicate transactions. Restrict retries to idempotent HTTP methods (GET, PUT, DELETE) or enforce idempotency keys (`Idempotency-Key` header) across the boundary.
+> Standard retries also handle network failures and selected transient responses. The example disables retries for POST, PATCH, PUT, DELETE, and CONNECT. Enable retries for a mutation only when its actual contract guarantees idempotency or enforces deduplication. A status-code/exception predicate alone does not restrict HTTP methods.
 
 > [!NOTE]
 > `Microsoft.Extensions.Http.Resilience` is published under Microsoft's standard library license. Polly 8.x is published under Apache-2.0 / BSD-3. Licensing revisions announced by maintainers apply only to future major releases after November 2026; transitive consumption via Microsoft packages remains officially supported.

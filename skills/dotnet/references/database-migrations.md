@@ -76,17 +76,20 @@ public partial class AddUserEmailIndex : Migration
 ```
 
 ### PostgreSQL: Non-Blocking Foreign Keys
-Validating a foreign key requires scanning the entire table under lock. Split into two steps: add as `NOT VALID` (instant, brief lock), then validate under a non-blocking lock:
+Add the foreign key as `NOT VALID`, commit that migration, then validate in a separate migration invocation. PostgreSQL retains the strongest acquired lock until commit; putting both statements in one transaction blocks writers throughout validation.
 
 ```csharp
-// Step 1: Adds constraint without table scan.
-// Acquires SHARE ROW EXCLUSIVE lock: concurrent SELECTs continue, but writes wait briefly during catalog update.
+// Migration A: acquire SHARE ROW EXCLUSIVE without scanning existing rows.
 migrationBuilder.Sql(
     "ALTER TABLE \"Orders\" ADD CONSTRAINT fk_orders_customer " +
     "FOREIGN KEY (\"CustomerId\") REFERENCES \"Customers\" (\"Id\") NOT VALID;");
+```
 
-// Step 2: Validates existing rows under SHARE UPDATE EXCLUSIVE lock.
-// Concurrent reads AND concurrent writes (SELECT, INSERT, UPDATE, DELETE) continue unblocked.
+Apply migration A to its target and let that invocation commit before applying migration B. Two migration classes submitted together can still share an outer transaction. Configure deployment lock timeouts/retries because adding the constraint can wait behind existing transactions.
+
+```csharp
+// Migration B: validate under SHARE UPDATE EXCLUSIVE after A has committed.
+// Ordinary reads/writes can proceed; conflicting DDL may still wait.
 migrationBuilder.Sql(
     "ALTER TABLE \"Orders\" VALIDATE CONSTRAINT fk_orders_customer;");
 ```
@@ -159,6 +162,8 @@ $$;
 CALL backfill_user_display_names(5000);
 DROP PROCEDURE backfill_user_display_names;
 ```
+
+Run `CALL` at the top level outside an explicit/ambient transaction. An EF migration transaction or a client transaction wrapping the call prevents the procedure's internal commits.
 
 Alternatively, orchestrate chunked updates from a background worker using `ExecuteUpdateAsync` to commit each chunk independently:
 
