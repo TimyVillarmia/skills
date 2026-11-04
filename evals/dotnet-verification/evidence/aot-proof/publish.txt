@@ -1,7 +1,0 @@
-  Determining projects to restore...
-/tmp/dotnet-aot-proof/AotProof.csproj : warning NU1903: Package 'Microsoft.DotNet.ILCompiler' 10.0.10 has a known high severity vulnerability, https://github.com/advisories/GHSA-p3jp-9v83-76w9
-  Restored /tmp/dotnet-aot-proof/AotProof.csproj (in 384 ms).
-/tmp/dotnet-aot-proof/AotProof.csproj : warning NU1903: Package 'Microsoft.DotNet.ILCompiler' 10.0.10 has a known high severity vulnerability, https://github.com/advisories/GHSA-p3jp-9v83-76w9
-  AotProof -> /tmp/dotnet-aot-proof/bin/Release/net10.0/linux-x64/AotProof.dll
-/home/timydev/.nuget/packages/microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets(325,5): error MSB4216: Could not run the "ComputeManagedAssemblies" task because MSBuild could not create or connect to a task host with runtime "NET" and architecture "x64".  Please ensure that (1) the requested runtime and/or architecture are available on the machine, and (2) that the required executable "/home/timydev/.local/share/mise/dotnet-root/sdk/10.0.302/MSBuild" exists and can be run. [/tmp/dotnet-aot-proof/AotProof.csproj]
-/home/timydev/.nuget/packages/microsoft.net.illink.tasks/10.0.10/build/Microsoft.NET.ILLink.targets(326,7): error MSB4027: The "ComputeManagedAssemblies" task generated invalid items from the "ManagedAssemblies" output parameter. This object is no longer valid because the MetadataLoadContext that created it has been disposed. [/tmp/dotnet-aot-proof/AotProof.csproj]

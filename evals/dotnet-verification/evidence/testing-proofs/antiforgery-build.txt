@@ -1,9 +1,0 @@
-/tmp/dotnet-testing-audit/Antiforgery/Program.cs(1,111): error CS1061: 'RouteHandlerBuilder' does not contain a definition for 'RequireAntiforgery' and no accessible extension method 'RequireAntiforgery' accepting a first argument of type 'RouteHandlerBuilder' could be found (are you missing a using directive or an assembly reference?) [/tmp/dotnet-testing-audit/Antiforgery/Antiforgery.csproj]
-
-Build FAILED.
-
-/tmp/dotnet-testing-audit/Antiforgery/Program.cs(1,111): error CS1061: 'RouteHandlerBuilder' does not contain a definition for 'RequireAntiforgery' and no accessible extension method 'RequireAntiforgery' accepting a first argument of type 'RouteHandlerBuilder' could be found (are you missing a using directive or an assembly reference?) [/tmp/dotnet-testing-audit/Antiforgery/Antiforgery.csproj]
-    0 Warning(s)
-    1 Error(s)
-
-Time Elapsed 00:00:02.12

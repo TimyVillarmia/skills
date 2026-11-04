@@ -1,1 +1,0 @@
-CSharp: field, extension, collection and JSON checks passed

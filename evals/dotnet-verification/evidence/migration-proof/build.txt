@@ -1,9 +1,0 @@
-  Determining projects to restore...
-  Restored /tmp/dotnet-migration-proof/MigrationProof.csproj (in 218 ms).
-  MigrationProof -> /tmp/dotnet-migration-proof/bin/Debug/net10.0/MigrationProof.dll
-
-Build succeeded.
-    0 Warning(s)
-    0 Error(s)
-
-Time Elapsed 00:00:02.63

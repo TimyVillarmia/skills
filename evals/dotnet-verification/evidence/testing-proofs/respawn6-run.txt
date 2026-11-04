@@ -1,1 +1,0 @@
-REPRODUCED: This overload only supports the SqlDataAdapter. To use an alternative adapter, use the overload that supplies a DbConnection. (Parameter 'DbAdapter')

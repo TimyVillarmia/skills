@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-04
+
+### Security & Data Isolation Fixes
+- **Multi-Tenancy Isolation (`skills/dotnet/references/multi-tenancy.md`):**
+  - Replaced `Expression.Constant(tenantContext)` in global query filter generation with dynamic `this.CurrentTenantId` property on `DbContext`, eliminating cross-tenant data leaks caused by EF Core's compiled model cache.
+  - Added user claim authorization in `TenantResolutionMiddleware` to reject untrusted tenant headers from authenticated callers with `403 Forbidden`.
+  - Hardened `TenantSaveChangesInterceptor` to fail closed (`InvalidOperationException`) on unresolved tenant contexts and verify tenant ownership on modified/deleted entities to block cross-tenant updates.
+  - Hardened `TenantConnectionFactory` to fail closed when a tenant's database connection string is unmapped, preventing silent fallback to a shared database.
+- **Minimal API CSRF Protection (`skills/dotnet/references/api.md`):**
+  - Removed non-existent `.RequireAntiforgery()` and MVC-only `[ValidateAntiForgeryToken]` attribute.
+  - Documented native ASP.NET Core Minimal API antiforgery: `app.UseAntiforgery()`, automatic token validation with `[FromForm]` (rejecting tokenless requests with `400 Bad Request`), and `.DisableAntiforgery()` opt-outs.
+- **Information Exposure Mitigation (`skills/dotnet/references/observability.md`):**
+  - Stripped internal exception messages and credential markers from public health probe JSON responses (`/healthz/live`, `/healthz/ready`).
+  - Added `[SensitiveData]` data classification attribute to `[LoggerMessage]` parameters to ensure `Microsoft.Extensions.Compliance.Redaction` redacts sensitive tokens in log output.
+
+### Operational & Concurrency Fixes
+- **Zero-Downtime DDL & Backfill Safety (`skills/dotnet/references/database-migrations.md`):**
+  - Corrected PostgreSQL lock documentation for `ADD CONSTRAINT ... NOT VALID`: documented `SHARE ROW EXCLUSIVE` lock acquisition.
+  - Replaced ambient transaction backfill loop with committed stored procedure batches (`COMMIT` inside loop) to release table/row locks and recycle WAL per 5,000 rows.
+- **Keyed Lock Eviction (`skills/dotnet/references/concurrency.md`):**
+  - Replaced unbounded `ConcurrentDictionary<string, SemaphoreSlim>` with `AsyncKeyedLock` reference-counted lock manager to eliminate key memory leaks and race conditions.
+  - Split provider-specific optimistic concurrency token recipes: SQL Server (`byte[] rowversion`) vs PostgreSQL (`uint xmin`).
+- **EF Core Navigation Filter Behavior (`skills/dotnet/references/efcore.md`):**
+  - Documented that filtered required navigations generate `INNER JOIN`, eliminating parent entities when child rows are filtered out.
+- **Compilation & Type Inference (`skills/dotnet/references/security.md`):**
+  - Added explicit `async Task<Results<...>>` return types to route handlers to resolve `CS1593` compiler errors.
+- **Test Fixture APIs (`skills/dotnet/references/testing.md`):**
+  - Updated Respawn checkpoint initialization and reset to use opened `NpgsqlConnection` instances (`await _respawner.ResetAsync(conn)`).
+- **MassTransit Outbox Setup (`skills/dotnet/references/messaging.md`):**
+  - Documented required `modelBuilder.AddInboxStateEntity()`, `OutboxMessage`, and `OutboxState` entity registrations in `DbContext.OnModelCreating`.
+- **HTTP Resilience Pipeline (`skills/dotnet/references/api.md`):**
+  - Corrected standard resilience handler pipeline order (Rate Limiter is outermost).
+  - Restricted default retries to idempotent operations to prevent duplicate mutations on non-idempotent endpoints.
+- **Licensing & Metadata Accuracy (`skills/dotnet/SKILL.md`):**
+  - Corrected FluentAssertions ownership to Xceed Software.
+  - Clarified Polly 8.x Apache-2.0 / BSD-3 status and noted future major terms post-November 2026.
+  - Compacted `SKILL.md` description to 738 characters to comply with skill-creator 1024-character threshold.
+  - Clarified test filter commands for VSTest (`--filter`) vs native MTP (`--treenode-filter`).
+
+### Fixed
+- **Scaffold Result Type (`skills/dotnet-scaffold/assets/SliceTemplate/Result.cs`):**
+  - Fixed `_error!.Value` access on nullable struct `AppError?` at lines 21 and 41, resolving `CS0266`/`CS1503` compiler errors.
+- **Evaluation Rubrics (`evals/evals.json`):**
+  - Updated Eval 1 to accept eager `Include` alongside projection and `AsSplitQuery`.
+  - Updated Eval 9 to match static `MapCustomerEndpoints` Minimal API routing.
+
 ## [1.3.0] - 2026-11-04
 
 ### Added
