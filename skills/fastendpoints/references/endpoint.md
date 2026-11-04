@@ -238,3 +238,60 @@ When targeting Native AOT:
        o.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
    });
    ```
+
+---
+
+## 8. OpenAPI Documentation & Scalar UI
+
+For interactive documentation, prefer **Scalar** (`Scalar.AspNetCore`) over legacy Swagger UI.
+
+### 1. Documenting Endpoints (`EndpointSummary`)
+Prefer a standalone `Summary<TEndpoint>` class over bloated `Configure()` methods to preserve vertical slice readability:
+
+```csharp
+public sealed class CreateOrderSummary : Summary<CreateOrderEndpoint>
+{
+    public CreateOrderSummary()
+    {
+        Summary = "Creates a new customer order";
+        Description = "Validates inventory availability, initiates payment processing, and creates order";
+        Response<CreateOrderResponse>(201, "Order created successfully");
+        Response<ProblemDetails>(400, "Validation failure or invalid order payload");
+        Response(401, "Unauthorized client");
+    }
+}
+```
+
+Or configure inline within `Configure()` for simple endpoints:
+
+```csharp
+public override void Configure()
+{
+    Post("/orders");
+    Summary(s =>
+    {
+        s.Summary = "Creates a new customer order";
+        s.Responses[201] = "Order created successfully";
+        s.Responses[400] = "Validation failure";
+    });
+}
+```
+
+### 2. Scalar Pipeline Configuration (`Program.cs`)
+Expose the OpenAPI spec at `/openapi/{documentName}.json` so `Scalar` detects it automatically:
+
+```csharp
+builder.Services
+    .AddFastEndpoints()
+    .SwaggerDocument(); // FastEndpoints.Swagger package
+
+var app = builder.Build();
+
+app.UseFastEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerGen(c => c.Path = "/openapi/{documentName}.json");
+    app.MapScalarApiReference(); // Accessible at /scalar/v1
+}
+```

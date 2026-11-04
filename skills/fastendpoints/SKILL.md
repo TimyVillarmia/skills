@@ -64,26 +64,29 @@ Load only the reference file needed for the immediate task.
 ```csharp
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register FastEndpoints services and OpenAPI/Swagger generator
+// Register FastEndpoints services and OpenAPI generator
 builder.Services
     .AddFastEndpoints()
     .SwaggerDocument(); // FastEndpoints.Swagger package
 
 var app = builder.Build();
 
-// Enable FastEndpoints middleware and Swagger UI
+// Enable FastEndpoints middleware
 app.UseFastEndpoints(c =>
 {
     c.Endpoints.RoutePrefix = "api";
     c.Errors.UseProblemDetails();
 });
 
+// Configure OpenAPI JSON and Scalar API Reference in Development
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwaggerGen();
+    app.UseSwaggerGen(c => c.Path = "/openapi/{documentName}.json");
+    app.MapScalarApiReference(); // Accessible at /scalar/v1
 }
 
 app.Run();
