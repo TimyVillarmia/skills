@@ -1,0 +1,35 @@
+  Determining projects to restore...
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+  Retrying 'FindPackagesByIdAsync' for source 'https://api.nuget.org/v3-flatcontainer/microsoft.net.illink.tasks/index.json'.
+  Permission denied (api.nuget.org:443)
+    Permission denied
+/tmp/dotnet-aot-proof/AotProof.csproj : error NU1301: Failed to retrieve information about 'Microsoft.DotNet.ILCompiler' from remote source 'https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.ilcompiler/index.json'.
+/tmp/dotnet-aot-proof/AotProof.csproj : error NU1301:   Permission denied (api.nuget.org:443)
+/tmp/dotnet-aot-proof/AotProof.csproj : error NU1301:   Permission denied
+  Failed to restore /tmp/dotnet-aot-proof/AotProof.csproj (in 5.75 sec).

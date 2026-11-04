@@ -1,0 +1,1 @@
+Observability: health response exposes exception marker: {"status":"Unhealthy","totalDurationMs":0,"entries":[{"name":"db","status":"Unhealthy","durationMs":0,"description":"health failure","error":"SECRET_TEST_VALUE"}]}

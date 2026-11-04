@@ -33,10 +33,30 @@ Background Worker -> Read Unpublished Messages -> Publish to Broker -> Mark Proc
 
 ### MassTransit EF Core Outbox (Recommended Standard)
 
-Do not write custom outbox tables and polling workers. Use MassTransit's battle-tested EF Core Outbox:
+Do not write custom outbox tables and polling workers. Use MassTransit's battle-tested EF Core Outbox (`MassTransit.EntityFrameworkCore`):
+
+#### 1. DbContext Entity Registration
+You must register MassTransit's outbox and inbox entities in `OnModelCreating`, otherwise EF Core will throw runtime errors for missing `OutboxState`:
 
 ```csharp
-// Program.cs
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+{
+    public DbSet<Order> Orders => Set<Order>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Required: Registers OutboxMessage, OutboxState, and InboxState entities in the EF model
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
+    }
+}
+```
+
+#### 2. Service Registration (`Program.cs`)
+```csharp
 builder.Services.AddMassTransit(x =>
 {
     // Register consumers
@@ -44,14 +64,15 @@ builder.Services.AddMassTransit(x =>
 
     x.AddEntityFrameworkOutbox<AppDbContext>(o =>
     {
-        // Polls the outbox table every 1 second and publishes via RabbitMQ/Azure Service Bus
-        o.UsePostgres(); // or UseSqlServer()
-        o.UseBusOutbox();
+        o.UsePostgres(); // or o.UseSqlServer()
+        o.UseBusOutbox(); // Writes IPublishEndpoint calls to the DbContext transaction
+        o.DuplicateDetectionWindow = TimeSpan.FromMinutes(30); // Retention window for inbox deduplication
     });
 
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host("localhost", "/", h => { h.Username("guest"); h.Password("guest"); });
+        // Automatically configures receive endpoints and attaches consumer inbox middleware
         cfg.ConfigureEndpoints(context);
     });
 });

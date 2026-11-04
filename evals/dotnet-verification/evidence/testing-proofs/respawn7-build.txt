@@ -1,0 +1,9 @@
+/tmp/dotnet-testing-audit/Respawn7/Program.cs(2,35): error CS1503: Argument 1: cannot convert from 'string' to 'System.Data.Common.DbConnection' [/tmp/dotnet-testing-audit/Respawn7/Respawn7.csproj]
+
+Build FAILED.
+
+/tmp/dotnet-testing-audit/Respawn7/Program.cs(2,35): error CS1503: Argument 1: cannot convert from 'string' to 'System.Data.Common.DbConnection' [/tmp/dotnet-testing-audit/Respawn7/Respawn7.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:01.69

@@ -33,25 +33,24 @@ public sealed class ResourceGate : IDisposable
 ```
 
 ### Keyed / Per-Resource Locking
-Locking the entire method blocks unrelated requests. When synchronizing operations on a specific entity (e.g. per `customerId` or `orderId`), lock on the entity key:
+Locking the entire method blocks unrelated requests. When synchronizing operations on a specific entity (e.g. per `customerId` or `orderId`), lock on the entity key.
+
+> [!WARNING]
+> **Keyed Lock Dictionary Memory Leak & Race Conditions:**
+> Storing raw `SemaphoreSlim` in a `ConcurrentDictionary<string, SemaphoreSlim>` without reference-counted eviction leaks memory indefinitely as new keys accumulate.
+> Naively removing semaphores in `finally` causes concurrency races where a waiter holds an evicted instance while a new thread instantiates another, breaking mutual exclusion.
+> In production, use a battle-tested reference-counting library like **`AsyncKeyedLock`**:
 
 ```csharp
-// Use an established keyed lock (e.g., AsyncKeyedLock) or bounded ConcurrentDictionary of Semaphores:
-public sealed class KeyedLockManager
+// Using AsyncKeyedLock (NuGet: AsyncKeyedLock)
+public sealed class OrderProcessingService(AsyncKeyedLocker<string> locker)
 {
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
-
-    public async Task ExecuteAsync(string key, Func<Task> action, CancellationToken ct)
+    public async Task ProcessOrderAsync(string orderId, CancellationToken ct)
     {
-        var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
-        await semaphore.WaitAsync(ct);
-        try
+        // Automatically manages reference count and safely disposes/evicts semaphore when waiters reach 0
+        using (await locker.LockAsync(orderId, ct).ConfigureAwait(false))
         {
-            await action();
-        }
-        finally
-        {
-            semaphore.Release();
+            await ExecuteOrderCriticalSectionAsync(orderId, ct);
         }
     }
 }
@@ -99,20 +98,39 @@ await Parallel.ForEachAsync(items, options, async (item, token) =>
 
 ## 3. Database Concurrency: Optimistic Locking
 
-To prevent lost updates when multiple users edit the same entity concurrently, configure an optimistic concurrency token:
+To prevent lost updates when multiple users edit the same entity concurrently, configure an optimistic concurrency token.
 
-### EF Core Entity Configuration
-```csharp
-public sealed class Order
-{
-    public Guid Id { get; init; }
-    public decimal TotalAmount { get; set; }
+### Provider-Specific Concurrency Tokens
 
-    // Concurrency token updated automatically by database (Postgres xmin / SQL Server rowversion)
-    [Timestamp]
-    public byte[] Version { get; init; } = [];
-}
-```
+- **SQL Server (`rowversion` / `byte[]`):**
+  Uses a hidden 8-byte binary counter auto-incremented by the engine on every row update:
+  ```csharp
+  public sealed class Order
+  {
+      public Guid Id { get; init; }
+      public decimal TotalAmount { get; set; }
+
+      [Timestamp]
+      public byte[] RowVersion { get; init; } = [];
+  }
+  ```
+
+- **PostgreSQL (`xmin` / `uint`):**
+  PostgreSQL uses the internal transaction ID system column `xmin` (unsigned 32-bit integer). Do not use `byte[]`:
+  ```csharp
+  public sealed class Order
+  {
+      public Guid Id { get; init; }
+      public decimal TotalAmount { get; set; }
+
+      // Mapped to Postgres system column 'xmin'
+      [Timestamp]
+      public uint Version { get; init; }
+  }
+
+  // In DbContext OnModelCreating:
+  modelBuilder.Entity<Order>().UseXminAsConcurrencyToken();
+  ```
 
 ### Handling `DbUpdateConcurrencyException`
 ```csharp

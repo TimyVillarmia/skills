@@ -101,8 +101,8 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 });
 ```
 
-### Built-in JSON Response Writer
-Always use native `System.Text.Json` rather than unneeded third-party packages:
+### Coarse Public Health Probe (Zero Secret Exposure)
+Public orchestrator probes (`/healthz/live`, `/healthz/ready`) must return coarse statuses only. **Never expose raw exception messages, internal server names, or connection strings in unauthenticated health responses:**
 
 ```csharp
 private static Task WriteJsonResponse(HttpContext context, HealthReport report)
@@ -117,8 +117,8 @@ private static Task WriteJsonResponse(HttpContext context, HealthReport report)
             name = e.Key,
             status = e.Value.Status.ToString(),
             durationMs = e.Value.Duration.TotalMilliseconds,
-            description = e.Value.Description,
-            error = e.Value.Exception?.Message
+            description = e.Value.Description
+            // NEVER include e.Value.Exception?.Message: leaks connection strings and internal credentials
         })
     };
     return JsonSerializer.SerializeAsync(context.Response.Body, response);
@@ -129,17 +129,37 @@ private static Task WriteJsonResponse(HttpContext context, HealthReport report)
 
 ## Data Redaction & Compliance
 
-Use `Microsoft.Extensions.Compliance.Redaction` to ensure credentials and personal identifiers never reach log aggregators:
+Use `Microsoft.Extensions.Compliance.Redaction` to ensure credentials, tokens, and PII never reach log aggregators.
+
+To redact data, you must both configure the redactor **and classify the logging parameters**:
 
 ```csharp
+// 1. Define taxonomy and classification attribute
+public static class DataTaxonomy
+{
+    public static DataClassification SensitiveData => new("Security", "Sensitive");
+}
+
+[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
+public sealed class SensitiveDataAttribute : DataClassificationAttribute
+{
+    public SensitiveDataAttribute() : base(DataTaxonomy.SensitiveData) { }
+}
+
+// 2. Classify parameters in high-performance logging source generator
+public static partial class LogMessages
+{
+    [LoggerMessage(EventId = 1002, Level = LogLevel.Information, Message = "Auth token issued for user {UserId}: {Token}")]
+    public static partial void TokenIssued(
+        ILogger logger,
+        Guid userId,
+        [SensitiveData] string token); // Redacted automatically in emitted log
+}
+
+// 3. Register redactor in Program.cs
 builder.Logging.EnableRedaction();
 builder.Services.AddRedaction(options =>
 {
     options.SetRedactor<ErasingRedactor>(new DataClassificationSet(DataTaxonomy.SensitiveData));
 });
-
-public static class DataTaxonomy
-{
-    public static DataClassification SensitiveData => new("Security", "Sensitive");
-}
 ```

@@ -45,7 +45,7 @@ Role or claim checks confirm *who* the caller is, but not *whether* they own or 
 Enforce access at the resource boundary using `IAuthorizationService`:
 
 ```csharp
-app.MapGet("/orders/{id:guid}", async (
+app.MapGet("/orders/{id:guid}", async Task<Results<Ok<OrderResponse>, NotFound, ForbidHttpResult>> (
     Guid id,
     OrderDbContext db,
     IAuthorizationService authService,
@@ -105,7 +105,7 @@ app.MapPut("/users/{id}", async (Guid id, User user, UserDbContext db) => { ... 
 // ✅ SECURE: Explicit request contract determines allowed mutations
 public sealed record UpdateUserRequest(string DisplayName, string PhoneNumber);
 
-app.MapPut("/users/{id:guid}", async (
+app.MapPut("/users/{id:guid}", async Task<Results<NoContent, NotFound>> (
     Guid id,
     UpdateUserRequest request,
     UserDbContext db,

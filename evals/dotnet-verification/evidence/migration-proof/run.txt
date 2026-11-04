@@ -1,0 +1,1 @@
+Six C# migration snippets compile; suppression and dual-write assignments observed. SQL strings are not database execution proof.

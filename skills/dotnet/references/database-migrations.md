@@ -76,15 +76,17 @@ public partial class AddUserEmailIndex : Migration
 ```
 
 ### PostgreSQL: Non-Blocking Foreign Keys
-Adding a foreign key directly scans the entire table and blocks writes. Add it as `NOT VALID`, then validate asynchronously:
+Validating a foreign key requires scanning the entire table under lock. Split into two steps: add as `NOT VALID` (instant, brief lock), then validate under a non-blocking lock:
 
 ```csharp
-// Step 1: Adds constraint without validating existing rows (instant, no table lock)
+// Step 1: Adds constraint without table scan.
+// Acquires SHARE ROW EXCLUSIVE lock: concurrent SELECTs continue, but writes wait briefly during catalog update.
 migrationBuilder.Sql(
     "ALTER TABLE \"Orders\" ADD CONSTRAINT fk_orders_customer " +
     "FOREIGN KEY (\"CustomerId\") REFERENCES \"Customers\" (\"Id\") NOT VALID;");
 
-// Step 2: Validates existing rows without blocking concurrent writes
+// Step 2: Validates existing rows under SHARE UPDATE EXCLUSIVE lock.
+// Concurrent reads AND concurrent writes (SELECT, INSERT, UPDATE, DELETE) continue unblocked.
 migrationBuilder.Sql(
     "ALTER TABLE \"Orders\" VALIDATE CONSTRAINT fk_orders_customer;");
 ```
@@ -124,13 +126,16 @@ Run `./efbundle` as an independent Kubernetes `Job` or init container prior to r
 
 ❌ **Never use EF Core `SaveChanges()` to backfill large datasets.** Loading 500,000 tracked entities into memory causes out-of-memory crashes and transaction log overflow.
 
-### Batched Raw SQL Updates
-Run backfills in bounded key chunks with sleep intervals to allow database replication and prevent lock contention:
+### Batched Updates with Committed Transaction Boundaries
+> [!CAUTION]
+> In PostgreSQL, a standard `DO $$ ... $$` block runs inside **one single transaction** regardless of loops or sleeps. It holds locks and accumulates undo across all iterations.
+> To release locks and allow WAL recycling between batches, use a `PROCEDURE` with an explicit `COMMIT` inside the loop, or batch from application code.
 
 ```sql
-DO $$
+CREATE OR REPLACE PROCEDURE backfill_user_display_names(batch_size INT DEFAULT 5000)
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    batch_size INT := 5000;
     rows_updated INT;
 BEGIN
     LOOP
@@ -145,10 +150,29 @@ BEGIN
         GET DIAGNOSTICS rows_updated = ROW_COUNT;
         EXIT WHEN rows_updated = 0;
 
-        -- Prevent lock escalation and replication lag
-        PERFORM pg_sleep(0.1);
+        -- Essential: commits progress and releases row/table locks per batch
+        COMMIT;
     END LOOP;
-END $$;
+END;
+$$;
+
+CALL backfill_user_display_names(5000);
+DROP PROCEDURE backfill_user_display_names;
+```
+
+Alternatively, orchestrate chunked updates from a background worker using `ExecuteUpdateAsync` to commit each chunk independently:
+
+```csharp
+while (!ct.IsCancellationRequested)
+{
+    var count = await db.Users
+        .Where(u => u.DisplayName == null && u.FullName != null)
+        .Take(5000)
+        .ExecuteUpdateAsync(s => s.SetProperty(u => u.DisplayName, u => u.FullName), ct);
+
+    if (count == 0) break;
+    await Task.Delay(100, ct); // Yield to other database traffic
+}
 ```
 
 ---

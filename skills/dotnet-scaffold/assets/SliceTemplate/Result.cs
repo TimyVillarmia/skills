@@ -18,7 +18,7 @@ public readonly record struct Result<TValue>
 
     public bool IsSuccess { get; }
     public TValue Value => IsSuccess ? _value! : throw new InvalidOperationException("Cannot access value of a failure result.");
-    public AppError Error => !IsSuccess ? _error! : throw new InvalidOperationException("Cannot access error of a success result.");
+    public AppError Error => !IsSuccess ? _error!.Value : throw new InvalidOperationException("Cannot access error of a success result.");
 
     private Result(TValue value)
     {
@@ -38,5 +38,5 @@ public readonly record struct Result<TValue>
     public static Result<TValue> Failure(AppError error) => new(error);
 
     public TResult Match<TResult>(Func<TValue, TResult> onSuccess, Func<AppError, TResult> onFailure) =>
-        IsSuccess ? onSuccess(_value!) : onFailure(_error!);
+        IsSuccess ? onSuccess(_value!) : onFailure(_error!.Value);
 }

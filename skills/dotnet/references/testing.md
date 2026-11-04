@@ -192,8 +192,10 @@ public class OrdersApiTests
         _factory = new CustomWebApplicationFactory<Program>(_connectionString);
         _client = _factory.CreateClient();
 
-        // Initialize Respawn checkpoint
-        _respawner = await Respawner.CreateAsync(_connectionString, new RespawnerOptions
+        // Initialize Respawn checkpoint using an opened DbConnection
+        await using var connection = new Npgsql.NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
         {
             SchemasToInclude = ["public"],
             DbAdapter = DbAdapter.Postgres
@@ -203,8 +205,10 @@ public class OrdersApiTests
     [TestInitialize]
     public async Task TestInit()
     {
-        // Reset database state before each test
-        await _respawner.ResetAsync(_connectionString);
+        // Reset database state before each test using an opened connection
+        await using var connection = new Npgsql.NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        await _respawner.ResetAsync(connection);
     }
 
     [TestMethod]

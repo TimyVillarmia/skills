@@ -1,0 +1,12 @@
+  Determining projects to restore...
+  Restored /tmp/dotnet-source-audit-proofs/SecurityHandler/SecurityHandler.csproj (in 82 ms).
+/tmp/dotnet-source-audit-proofs/SecurityHandler/Program.cs(14,26): warning ASP0000: Calling 'BuildServiceProvider' from application code results in an additional copy of singleton services being created. Consider alternatives such as dependency injecting services as parameters to 'Configure'. (https://aka.ms/AA5k895) [/tmp/dotnet-source-audit-proofs/SecurityHandler/SecurityHandler.csproj]
+  SecurityHandler -> /tmp/dotnet-source-audit-proofs/SecurityHandler/bin/Debug/net10.0/SecurityHandler.dll
+
+Build succeeded.
+
+/tmp/dotnet-source-audit-proofs/SecurityHandler/Program.cs(14,26): warning ASP0000: Calling 'BuildServiceProvider' from application code results in an additional copy of singleton services being created. Consider alternatives such as dependency injecting services as parameters to 'Configure'. (https://aka.ms/AA5k895) [/tmp/dotnet-source-audit-proofs/SecurityHandler/SecurityHandler.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.46

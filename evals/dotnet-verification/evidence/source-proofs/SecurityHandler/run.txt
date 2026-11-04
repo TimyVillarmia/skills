@@ -1,0 +1,4 @@
+Security: handler allows owner and denies stranger
+info: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[2]
+      Authorization failed. These requirements were not met:
+      OperationAuthorizationRequirement:Name=Read

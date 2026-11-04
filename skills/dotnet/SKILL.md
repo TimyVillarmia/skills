@@ -1,10 +1,10 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; concurrency, synchronization, and locks; distributed messaging, outbox pattern, and MassTransit; multi-tenancy, tenant isolation, and global query filters; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency, race condition, dual-write). For creating a new solution, project, or feature slice use dotnet-scaffold; for FastEndpoints use the fastendpoints skill; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
+description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, Native AOT; ASP.NET Core Minimal APIs, OpenAPI, problem details; OpenTelemetry and logging; background services and channels; EF Core, queries, zero-downtime migrations, and outbox; concurrency, locks, and thread safety; distributed messaging and MassTransit; multi-tenancy and global query filters; architecture and Vertical Slice; auth/authz and security; code review; or .cs/.csproj/.sln files. Handles .NET symptoms without naming .NET (slow Includes, N+1, endpoint status codes, tenant isolation, idempotency, race conditions, dual-write). For scaffolding solutions/slices use dotnet-scaffold; for FastEndpoints REPR use fastendpoints.
 license: MIT
 metadata:
   author: Timy
-  version: "1.6"
+  version: "1.7"
 ---
 
 # .NET Engineering
@@ -201,10 +201,10 @@ Several prominent .NET libraries have migrated to commercial licenses or subscri
 | Package | Version / Model | License / Condition | Recommended Action & Permissive Alternative |
 |---|---|---|---|
 | **MediatR** | $\ge$ 13.0 | Commercial (Lucky Penny dual license) | Prefer direct handler injection; for mediator pipelines use `Mediator.SourceGenerator` (MIT, source-generated, Native AOT) or `WolverineFx` (MIT). |
-| **FluentAssertions** | $\ge$ 8.0 | Commercial (Xeno Innovations) | Prefer MSTest native assertions or xUnit `Assert`; for fluent assertions use `Shouldly` (BSD) or `AwesomeAssertions` (Apache 2.0). |
+| **FluentAssertions** | $\ge$ 8.0 | Commercial (Xceed Software) | Prefer MSTest native assertions or xUnit `Assert`; for fluent assertions use `Shouldly` (BSD) or `AwesomeAssertions` (Apache 2.0). |
 | **MassTransit** | $\ge$ 9.0 | Commercial | Use `WolverineFx` (MIT) or remain pinned on v8.x. |
 | **AutoMapper** | $\ge$ 15.0 | Commercial | Use compile-time `Riok.Mapperly` (Apache 2.0) or static DTO factory methods (`UserResponse.From(entity)`). |
-| **Polly / Polly.Core** | OSMF Model | $20/mo EULA if revenue $\ge \$20\text{k}$ | Avoid direct `Polly` package references. Use Microsoft's official `Microsoft.Extensions.Http.Resilience` (MIT). |
+| **Polly / Polly.Core** | Future major (>Nov 2026) | Existing v8.x is Apache-2.0 / BSD-3 | Direct `Polly` v8.x is permissive; future post-2026 majors announced OSMF fee. Transitive usage via `Microsoft.Extensions.Http.Resilience` remains under Microsoft's package license. |
 
 For a new dependency that is not already established by the repository, explain the trade-off and ask the user before adding it unless the task explicitly requested it or the repository requires it. Do not ask before using an existing dependency.
 
@@ -257,9 +257,9 @@ After changes, validate proportionally to risk using native, standalone CLI comm
    `dotnet format --verify-no-changes`
 2. Build the smallest useful scope first, then the relevant solution when warranted:
    `dotnet build <project-or-sln> -c Debug`
-3. Run focused tests using native CLI filter expressions, followed by broader runs:
-   - Run specific test: `dotnet test --filter "FullyQualifiedName~<ClassName>.<MethodName>"`
-   - Run specific category/trait: `dotnet test --filter "TestCategory=<Category>"`
+3. Run focused tests using runner-appropriate filter syntax:
+   - VSTest / bridged MTP: `dotnet test --filter "FullyQualifiedName~<ClassName>.<MethodName>"`
+   - Native MTP runner: `dotnet test -- --treenode-filter /*/*/*<MethodName>*` (or use `run-tests` skill to resolve runner flags)
    - Dual-configuration verification when relevant: `dotnet test -c Debug` and `dotnet test -c Release`
 4. Verify API contracts, database behavior, migrations, or security behavior when affected.
 5. Review the final diff for unintended changes, unnecessary complexity, and regressions.

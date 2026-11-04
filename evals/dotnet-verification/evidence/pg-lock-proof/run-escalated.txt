@@ -1,0 +1,10 @@
+Independent backend process IDs: 177 and 178
+PASS Same key rejected on independent coordinator while first callback active
+PASS First callback commits successfully
+PASS Same key acquired after first transaction commits
+PASS Callback exception propagates to caller
+PASS Callback exception rollback/disposal releases lock
+PASS Same key remains excluded while cancellable callback active
+PASS Callback cancellation propagates to caller
+PASS Callback cancellation rollback/disposal releases lock
+POSTGRES LOCK PROOF COMPLETED

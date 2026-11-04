@@ -1,0 +1,12 @@
+/tmp/dotnet-testing-audit/XFixture/Fixture.cs(7,55): warning CS0618: 'PostgreSqlBuilder.PostgreSqlBuilder()' is obsolete: 'This parameterless constructor is obsolete and will be removed. Use the constructor with the image parameter instead: https://github.com/testcontainers/testcontainers-dotnet/discussions/1470#discussioncomment-15185721.' [/tmp/dotnet-testing-audit/XFixture/XFixture.csproj]
+/tmp/dotnet-testing-audit/XFixture/Fixture.cs(23,30): warning xUnit1051: Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken to allow test cancellation to be more responsive. (https://xunit.net/xunit.analyzers/rules/xUnit1051) [/tmp/dotnet-testing-audit/XFixture/XFixture.csproj]
+  XFixture -> /tmp/dotnet-testing-audit/XFixture/bin/Debug/net10.0/XFixture.dll
+
+Build succeeded.
+
+/tmp/dotnet-testing-audit/XFixture/Fixture.cs(7,55): warning CS0618: 'PostgreSqlBuilder.PostgreSqlBuilder()' is obsolete: 'This parameterless constructor is obsolete and will be removed. Use the constructor with the image parameter instead: https://github.com/testcontainers/testcontainers-dotnet/discussions/1470#discussioncomment-15185721.' [/tmp/dotnet-testing-audit/XFixture/XFixture.csproj]
+/tmp/dotnet-testing-audit/XFixture/Fixture.cs(23,30): warning xUnit1051: Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken to allow test cancellation to be more responsive. (https://xunit.net/xunit.analyzers/rules/xUnit1051) [/tmp/dotnet-testing-audit/XFixture/XFixture.csproj]
+    2 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.99

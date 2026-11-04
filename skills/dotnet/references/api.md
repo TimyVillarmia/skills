@@ -203,7 +203,14 @@ return result.Match<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpRes
 
 ## API Versioning
 
-Use `Asp.Versioning.Http` for Minimal API versioning. Define versions through route sets:
+Use `Asp.Versioning.Http` paired with `Asp.Versioning.Mvc.ApiExplorer` for Minimal API versioning and OpenAPI exploration:
+
+```xml
+<PackageReference Include="Asp.Versioning.Http" Version="8.*" />
+<PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.*" />
+```
+
+Define versions through route version sets:
 
 ```csharp
 builder.Services.AddApiVersioning(options =>
@@ -312,30 +319,52 @@ public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
 ### 2. HTTP Output Caching: `app.UseOutputCache()`
 For caching rendered HTTP responses on the server side, prefer Output Caching over legacy `ResponseCaching`. Output Caching supports distributed backends, eviction policies, and route cache tags (`.CacheOutput(p => p.Tag("products"))`).
 
-- **Minimal API Anti-Forgery**: Endpoints accepting HTML form posts should enforce anti-forgery using `.RequireAntiforgery()` or the `[ValidateAntiForgeryToken]` attribute.
+### 3. Minimal API Anti-Forgery (CSRF)
+In ASP.NET Core Minimal APIs, anti-forgery is enforced via the native antiforgery middleware:
+
+```csharp
+builder.Services.AddAntiforgery();
+// ...
+app.UseAntiforgery(); // Must be placed between UseAuthentication/UseAuthorization and endpoints
+```
+
+- **Native Form Binding (`[FromForm]`):** Endpoints that accept form parameters via `[FromForm]` automatically validate the antiforgery token. Tokenless or invalid requests are rejected with `400 Bad Request`.
+- **Manual Form Parsing:** If an endpoint reads `context.Request.ReadFormAsync()` directly without `[FromForm]`, automatic token validation does **not** occur. You must explicitly call `await app.Services.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context)`.
+- **Opt-out:** Call `.DisableAntiforgery()` on specific endpoints that accept external webhooks or machine-to-machine form posts.
+- **Do not use MVC attributes:** Attributes such as `[ValidateAntiForgeryToken]` or non-existent methods like `.RequireAntiforgery()` do not protect Minimal APIs.
 
 ## HTTP Resilience, Idempotency, and Concurrency
 
 ### HTTP Client Resilience (`Microsoft.Extensions.Http.Resilience`)
-For outbound HTTP communication, use Microsoft's official `Microsoft.Extensions.Http.Resilience` package (MIT licensed):
+For outbound HTTP communication, use Microsoft's official `Microsoft.Extensions.Http.Resilience` package:
 
 ```csharp
 builder.Services.AddHttpClient<InventoryClient>(client =>
 {
     client.BaseAddress = new Uri("https://inventory.service.local");
     client.Timeout = TimeSpan.FromSeconds(15);
-}).AddStandardResilienceHandler();
+}).AddStandardResilienceHandler(options =>
+{
+    // Configure safe retry behavior: do not retry non-idempotent mutations blindly
+    options.Retry.ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+        .Handle<HttpRequestException>()
+        .HandleResult(response => (int)response.StatusCode >= 500);
+});
 ```
 
-The standard resilience handler automatically configures a Polly v8 pipeline:
-1. **Total Request Timeout** (overall call deadline)
-2. **Standard Retry** (exponential backoff with jitter on transient 5xx/408/network errors)
-3. **Circuit Breaker** (fails fast when failure rate exceeds threshold)
-4. **Attempt Timeout** (deadline per HTTP attempt)
-5. **Rate Limiter** (prevents overwhelming downstream services)
+The standard resilience handler executes policies in this specific order (outermost to innermost):
+1. **Rate Limiter** (outermost: sheds load immediately before exhausting timeouts or retry budgets)
+2. **Total Request Timeout** (overall call deadline across all attempts)
+3. **Standard Retry** (exponential backoff with jitter on transient failures)
+4. **Circuit Breaker** (fails fast when failure rate exceeds threshold)
+5. **Attempt Timeout** (innermost: timeout per individual HTTP request attempt)
+
+> [!WARNING]
+> **Retry Safety on Non-Idempotent Operations:**
+> By default, standard retries execute on transient HTTP 5xx responses. If an endpoint is non-idempotent (e.g. `POST /orders` or `POST /payments`), an unhandled network disconnect after server processing can result in duplicate transactions. Restrict retries to idempotent HTTP methods (GET, PUT, DELETE) or enforce idempotency keys (`Idempotency-Key` header) across the boundary.
 
 > [!NOTE]
-> Consuming `Microsoft.Extensions.Http.Resilience` carries standard Microsoft MIT licensing. Avoid adding direct dependencies on `Polly` or `Polly.Core` packages, which enforce an Open Source Maintenance Fee (OSMF) EULA on commercial organizations earning $\ge \$20\text{k}$ revenue.
+> `Microsoft.Extensions.Http.Resilience` is published under Microsoft's standard library license. Polly 8.x is published under Apache-2.0 / BSD-3. Licensing revisions announced by maintainers apply only to future major releases after November 2026; transitive consumption via Microsoft packages remains officially supported.
 
 ### Idempotency & Concurrency
 - For retryable operations, determine whether the operation is naturally idempotent. If not, require an idempotency key (`Idempotency-Key` header).

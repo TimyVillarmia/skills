@@ -1,0 +1,13 @@
+/tmp/dotnet-testing-audit/MSTest/Fixture.cs(7,61): warning CS0618: 'PostgreSqlBuilder.PostgreSqlBuilder()' is obsolete: 'This parameterless constructor is obsolete and will be removed. Use the constructor with the image parameter instead: https://github.com/testcontainers/testcontainers-dotnet/discussions/1470#discussioncomment-15185721.' [/tmp/dotnet-testing-audit/MSTest/MSTest.csproj]
+Running tests from /tmp/dotnet-testing-audit/MSTest/bin/Debug/net10.0/MSTest.dll (net10.0|x64)
+/tmp/dotnet-testing-audit/MSTest/bin/Debug/net10.0/MSTest.dll (net10.0|x64) passed (7s 790ms)
+
+  In process file artifacts produced:
+    - /tmp/dotnet-testing-audit/TestResults/time.trx
+
+Test run summary: Passed!
+  total: 1
+  failed: 0
+  succeeded: 1
+  skipped: 0
+  duration: 8s 186ms

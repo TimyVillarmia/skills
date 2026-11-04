@@ -1,0 +1,7 @@
+  Determining projects to restore...
+/tmp/dotnet-aot-proof/AotProof.csproj : warning NU1903: Package 'Microsoft.DotNet.ILCompiler' 10.0.10 has a known high severity vulnerability, https://github.com/advisories/GHSA-p3jp-9v83-76w9
+  All projects are up-to-date for restore.
+/tmp/dotnet-aot-proof/AotProof.csproj : warning NU1903: Package 'Microsoft.DotNet.ILCompiler' 10.0.10 has a known high severity vulnerability, https://github.com/advisories/GHSA-p3jp-9v83-76w9
+  AotProof -> /tmp/dotnet-aot-proof/bin/Release/net10.0/linux-x64/AotProof.dll
+  Generating native code
+  AotProof -> /tmp/dotnet-aot-proof/bin/Release/net10.0/linux-x64/publish/

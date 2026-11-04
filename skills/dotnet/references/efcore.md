@@ -50,8 +50,8 @@ modelBuilder.Entity<Order>()
 
 #### Caveats and Rules:
 1. **Leaking tenant data via `IgnoreQueryFilters()`:** Never invoke `.IgnoreQueryFilters()` on client-facing queries for multi-tenant entities. If bypassing soft-delete for admin operations, filter the tenant boundary manually.
-2. **Navigation property filtering:** EF Core applies query filters to included navigation targets. If a related entity is soft-deleted, the navigation property evaluates to `null` or an empty collection.
-3. **Dynamic parameter resolution:** Ensure the filter references a property or field on the `DbContext` instance (set via constructor dependency injection), rather than a static capture.
+2. **Required navigation elimination (INNER JOIN trap):** If a relationship is configured as required (`IsRequired()` / non-nullable foreign key), EF Core generates an `INNER JOIN`. If the related child entity is soft-deleted or filtered out by a query filter, the `INNER JOIN` matches 0 rows and removes the entire parent entity from query results. To preserve the parent, configure the relationship as optional (`LEFT JOIN`) or account for filter cascades.
+3. **Dynamic parameter resolution:** Ensure the filter references a property on the `DbContext` instance (e.g. `this.CurrentTenantId`), rather than capturing an external scoped service via `Expression.Constant`, which bakes the first tenant into EF's cached model permanently.
 
 ---
 

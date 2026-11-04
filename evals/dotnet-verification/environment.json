@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-04",
+  "repository_commit": "ff488de5dd152235ee66d01ed70cd2b4d999361a",
+  "sdk": "10.0.302",
+  "runtime": "10.0.13",
+  "language": "C#14 (SDK default)",
+  "sql_server": "2022 Developer RTM-CU26 16.0.4265.3",
+  "postgresql": "16.15",
+  "sql_image": "sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89",
+  "pg_image": "sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab",
+  "files": {
+    "skills/dotnet/SKILL.md": "fabbecae45767e26bcab059c98b4fcc2b2a62fb92a05312e86ce2e04921a3eaa",
+    "skills/dotnet/references/api.md": "358db6ea1e8e879417012418bfa3328eb6087f5a439ae01440ddf948894d6ca0",
+    "skills/dotnet/references/architecture.md": "4a960b9d6dae0c68dbc48d00fe324c6caae0e6340ef5eb7a725060dfc358b189",
+    "skills/dotnet/references/concurrency.md": "b20476201d7699411af77993a4d49e886a0be8736569099771424e31cbd38d6b",
+    "skills/dotnet/references/csharp.md": "3763a649f1400a625845fea6f151d329c526129c019bf246ea1cd79db0ad8c2b",
+    "skills/dotnet/references/database-migrations.md": "45aabc9078ed83313d644447f2ea3df899e56d0ef5522a72b8fcca69b86251dd",
+    "skills/dotnet/references/efcore.md": "303b6cb493a053aa40c08040e177a6ca14a20b6cf00af3f46d386d27d400e65c",
+    "skills/dotnet/references/hosted-services.md": "468db5dd75320344da21853f0ef67bef381126fe5ef717b778d916f5c96c911a",
+    "skills/dotnet/references/messaging.md": "1b3ef4b4078f264b44a9b864f372aff1579384c8cbb15e2354c07730281b5124",
+    "skills/dotnet/references/multi-tenancy.md": "f5e1012685dff15777111fb8430f0fcf40227222020dc18bf762cafa731bf150",
+    "skills/dotnet/references/observability.md": "4311466ba52fb771c69561bd62d6824eaa64e6f700d3ca64c378176e56f621e0",
+    "skills/dotnet/references/performance.md": "07b5c94b8bd1820fd247d893f526fee424bb8727d139d0683c351428584656c9",
+    "skills/dotnet/references/review.md": "28584ed1e2a7be784d8efa6f48937d559e51ea09f59cda3909bdb4c4b090d00a",
+    "skills/dotnet/references/security.md": "e83f89e24096960e14dd7226dbd5972241416418eee8274aa6320c0d152f7da0",
+    "skills/dotnet/references/testing.md": "21cb73398e5e195801ea1b10bf233a5b2af87f4b35bffd887646e7009f210f7e"
+  },
+  "agent_model": "Session-inherited model; no override; exact model build not exposed",
+  "source_skill_version": "1.6"
+}

@@ -9,7 +9,7 @@
       "expected_output": "Optimizes EF Core query by using AsSplitQuery or DTO projection without unnecessary tracking or N+1 queries.",
       "expectations": [
         "Identifies N+1 query cause when loading collections",
-        "Recommends explicit projection (Select) or AsSplitQuery() rather than naive Include",
+        "Recommends explicit projection (Select), eager Include, or AsSplitQuery() to eliminate N+1 roundtrips",
         "Notes trade-offs of split queries (inconsistent snapshots across splits) vs single queries (cartesian explosion)",
         "Recommends AsNoTracking() for read-only scenarios"
       ]
@@ -113,10 +113,10 @@
       "skill_target": "dotnet-scaffold",
       "name": "scaffold-vertical-slice-minimal-api",
       "prompt": "Scaffold a complete vertical slice for creating a customer in our Minimal API project: request, response, handler, and endpoint.",
-      "expected_output": "Generates complete slice under Features/Customers/CreateCustomer/ with IEndpoint, Request, Response, Handler, and typed Results.",
+      "expected_output": "Generates complete slice under Features/Customers/CreateCustomer/ with static route mapping, Request, Response, Handler, and typed Results.",
       "expectations": [
         "Places slice in Features/Customers/CreateCustomer/",
-        "Implements IEndpoint with Map(IEndpointRouteBuilder endpoints)",
+        "Organizes routing via static Map extension method on IEndpointRouteBuilder (e.g. MapCustomerEndpoints)",
         "Endpoint returns typed Results<Created<CreateCustomerResponse>, ProblemHttpResult> without .WithOpenApi()",
         "Handler is registered in dependency injection",
         "Slice code compiles cleanly with 0 warnings and 0 errors"

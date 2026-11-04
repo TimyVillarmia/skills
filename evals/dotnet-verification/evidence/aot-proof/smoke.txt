@@ -1,0 +1,7 @@
+RequireAuthorization rejects anonymous request: 401
+Mapped collection endpoint uses generated JSON metadata: 200
+Documented typed service-injected endpoint: 200
+Documented typed not-found branch: 404
+Mapped create endpoint binds source-generated request and emits response: 201
+Original csharp JsonSerializerContext and ConfigureHttpJsonOptions work in native binary
+6 native smoke assertions passed

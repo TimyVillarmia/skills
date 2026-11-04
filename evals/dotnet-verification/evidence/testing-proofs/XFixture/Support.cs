@@ -1,0 +1,1 @@
+public class Program {} public record CreateOrderRequest(string Product,int Quantity); public class CustomApiFactory : Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> {}

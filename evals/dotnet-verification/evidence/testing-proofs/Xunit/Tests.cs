@@ -1,0 +1,1 @@
+using Xunit; public class AuditTests { [Fact] public void First() => Assert.True(true); [Fact] public void Second() => Assert.Equal(2, 1+1); }

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "TenantHeader_AuthenticatedWithoutClaim_AcceptsArbitraryTenant",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "TenantConnection_MissingMapping_FallsBackToSharedDatabase",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "KeyedLock_CompletedDistinctKeys_RemainRetained",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "ExceptionHandler_Production_BypassesProblemDetailsCustomization",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "Resilience_StandardHandler_RetriesUnsafePostByDefault",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "TenantFilter_SecondContext_ReusesFirstTenant",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "TenantFilter_ContextProperty_ControlIsIsolated",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "TenantInterceptor_AttachedForeignEntity_UpdatesOtherTenant",
+    "status": "Observed",
+    "error": ""
+  },
+  {
+    "name": "TenantInterceptor_UnresolvedContext_AllowsInsert",
+    "status": "Observed",
+    "error": ""
+  }
+]

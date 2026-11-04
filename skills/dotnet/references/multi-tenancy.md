@@ -24,30 +24,37 @@ public sealed class TenantContext : ITenantContext
     public bool IsResolved => TenantId != Guid.Empty;
 }
 
-// 2. Resolution middleware (e.g. from validated JWT claim)
+// 2. Resolution middleware with tenant authorization
 public sealed class TenantResolutionMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, TenantContext tenantContext)
     {
-        var tenantClaim = context.User.FindFirst("tenant_id")?.Value
-                       ?? context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-
-        if (Guid.TryParse(tenantClaim, out var tenantId))
+        // For authenticated requests, resolve and authorize against user claims
+        if (context.User.Identity?.IsAuthenticated == true)
         {
-            tenantContext.TenantId = tenantId;
-        }
+            var allowedTenants = context.User.FindAll("tenant_id")
+                .Select(c => c.Value)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Fail-fast on authenticated routes missing tenant context
-        if (context.User.Identity?.IsAuthenticated == true && !tenantContext.IsResolved)
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            // Optional header allows switching between explicitly authorized tenants
+            var requestedTenant = context.Request.Headers["X-Tenant-Id"].FirstOrDefault()
+                               ?? context.User.FindFirst("tenant_id")?.Value;
+
+            if (string.IsNullOrEmpty(requestedTenant) ||
+                !allowedTenants.Contains(requestedTenant) ||
+                !Guid.TryParse(requestedTenant, out var tenantId))
             {
-                Title = "Unauthorized",
-                Detail = "Valid tenant context could not be resolved from credentials.",
-                Status = StatusCodes.Status401Unauthorized
-            });
-            return;
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Title = "Forbidden",
+                    Detail = "User is not authorized for the requested tenant.",
+                    Status = StatusCodes.Status403Forbidden
+                });
+                return;
+            }
+
+            tenantContext.TenantId = tenantId;
         }
 
         await next(context);
@@ -77,11 +84,19 @@ public sealed class Customer : ITenantEntity
 ```
 
 ### Global Query Filters (Model Builder)
-Automatically register query filters on all entities implementing `ITenantEntity`:
+Automatically register query filters on all entities implementing `ITenantEntity`.
+
+> [!CAUTION]
+> **Never use `Expression.Constant(tenantContext)` in query filter expressions.**
+> EF Core caches the compiled `IModel`. Capturing an external object via `Expression.Constant` bakes the first tenant's ID into the model cache permanently, causing critical cross-tenant data leaks.
+> Instead, reference a property on the `DbContext` instance itself (`CurrentTenantId`). EF Core dynamically parameterizes `DbContext` member accesses per query execution.
 
 ```csharp
 public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext tenantContext) : DbContext(options)
 {
+    // Property on the DbContext instance evaluated dynamically per query
+    public Guid CurrentTenantId => tenantContext.TenantId;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -90,26 +105,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         {
             if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // Configures: e => e.TenantId == tenantContext.TenantId
+                // Configures: e => e.TenantId == this.CurrentTenantId
                 modelBuilder.Entity(entityType.ClrType)
-                    .HasQueryFilter(CreateTenantFilter(entityType.ClrType, tenantContext));
+                    .HasQueryFilter(CreateTenantFilter(entityType.ClrType));
             }
         }
     }
 
-    private static LambdaExpression CreateTenantFilter(Type type, ITenantContext context)
+    private LambdaExpression CreateTenantFilter(Type entityType)
     {
-        var parameter = Expression.Parameter(type, "e");
+        var parameter = Expression.Parameter(entityType, "e");
         var property = Expression.Property(parameter, nameof(ITenantEntity.TenantId));
-        var tenantId = Expression.Property(Expression.Constant(context), nameof(ITenantContext.TenantId));
-        var comparison = Expression.Equal(property, tenantId);
+        // References 'this.CurrentTenantId' on the executing DbContext instance
+        var contextProperty = Expression.Property(Expression.Constant(this), nameof(CurrentTenantId));
+        var comparison = Expression.Equal(property, contextProperty);
         return Expression.Lambda(comparison, parameter);
     }
 }
 ```
 
-### Overwriting Tenant ID on Save (`SaveChangesInterceptor`)
-Prevent client tampering by automatically overwriting `TenantId` on added entities:
+### Enforcing Tenant Boundaries on Save (`SaveChangesInterceptor`)
+Prevent client tampering and cross-tenant updates at the write boundary:
 
 ```csharp
 public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) : SaveChangesInterceptor
@@ -119,19 +135,38 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        if (eventData.Context is null || !tenantContext.IsResolved)
+        if (eventData.Context is null)
             return base.SavingChangesAsync(eventData, result, cancellationToken);
 
-        foreach (var entry in eventData.Context.ChangeTracker.Entries<ITenantEntity>())
+        var tenantEntries = eventData.Context.ChangeTracker.Entries<ITenantEntity>().ToList();
+        if (tenantEntries.Count == 0)
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+
+        // Fail-closed: Never allow saving tenant entities without a resolved tenant context
+        if (!tenantContext.IsResolved)
+        {
+            throw new InvalidOperationException(
+                "Cannot persist tenant-scoped entities: TenantContext is unresolved. Failing closed.");
+        }
+
+        foreach (var entry in tenantEntries)
         {
             if (entry.State == EntityState.Added)
             {
                 // Force tenant ownership from ambient context
                 entry.Entity.TenantId = tenantContext.TenantId;
             }
-            else if (entry.State == EntityState.Modified)
+            else if (entry.State is EntityState.Modified or EntityState.Deleted)
             {
-                // Prevent reassignment of tenant ID
+                // Verify the entity being modified/deleted belongs to the current tenant
+                if (entry.Entity.TenantId != tenantContext.TenantId)
+                {
+                    throw new InvalidOperationException(
+                        $"Cross-tenant write prohibited: Entity belongs to tenant '{entry.Entity.TenantId}', " +
+                        $"but ambient context is tenant '{tenantContext.TenantId}'.");
+                }
+
+                // Prevent reassignment of TenantId on update
                 entry.Property(x => x.TenantId).IsModified = false;
             }
         }
@@ -159,8 +194,15 @@ public sealed class TenantConnectionFactory(ITenantContext tenantContext, IConfi
         if (!tenantContext.IsResolved)
             throw new InvalidOperationException("Cannot resolve database connection without tenant context.");
 
-        return configuration.GetConnectionString($"Tenant_{tenantContext.TenantId}")
-            ?? configuration.GetConnectionString("DefaultConnection")!;
+        var connectionString = configuration.GetConnectionString($"Tenant_{tenantContext.TenantId}");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            // Fail-closed: Never silently fall back to a shared default database
+            throw new InvalidOperationException(
+                $"No database connection configured for tenant '{tenantContext.TenantId}'. Failing closed.");
+        }
+
+        return connectionString;
     }
 }
 ```

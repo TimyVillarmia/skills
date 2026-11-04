@@ -1,0 +1,11 @@
+  Determining projects to restore...
+  Restored /tmp/dotnet-forward-test/app/src/TenantDocs/TenantDocs.csproj (in 397 ms).
+  Restored /tmp/dotnet-forward-test/app/tests/TenantDocs.Tests/TenantDocs.Tests.csproj (in 414 ms).
+  TenantDocs -> /tmp/dotnet-forward-test/app/src/TenantDocs/bin/Debug/net10.0/TenantDocs.dll
+  TenantDocs.Tests -> /tmp/dotnet-forward-test/app/tests/TenantDocs.Tests/bin/Debug/net10.0/TenantDocs.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:04.23

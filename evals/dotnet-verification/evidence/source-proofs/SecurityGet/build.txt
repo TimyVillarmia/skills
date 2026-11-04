@@ -1,0 +1,11 @@
+  Determining projects to restore...
+  Restored /tmp/dotnet-source-audit-proofs/SecurityGet/SecurityGet.csproj (in 74 ms).
+/tmp/dotnet-source-audit-proofs/SecurityGet/Program.cs(10,27): error CS1593: Delegate 'RequestDelegate' does not take 5 arguments [/tmp/dotnet-source-audit-proofs/SecurityGet/SecurityGet.csproj]
+
+Build FAILED.
+
+/tmp/dotnet-source-audit-proofs/SecurityGet/Program.cs(10,27): error CS1593: Delegate 'RequestDelegate' does not take 5 arguments [/tmp/dotnet-source-audit-proofs/SecurityGet/SecurityGet.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:03.01
