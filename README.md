@@ -38,13 +38,14 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 ## Included skills
 
 ### 1. `dotnet`
-Engineering standards and task routing for .NET 10 LTS. Includes 13 domain reference guides:
+Engineering standards and task routing for .NET 10 LTS. Includes 14 domain reference guides:
 - `csharp.md`: C# idioms, primary constructors, pattern matching, async ValueTask vs Task choices, and JSON source generation for Native AOT.
 - `api.md`: Minimal APIs, OpenAPI transformers, centralized Problem Details error handlers, and API versioning with Asp.Versioning.Http.
 - `architecture.md`: Vertical slice design, CQRS boundaries, mapper source generators (Riok.Mapperly), and mandatory `ValidateOnStart()` options validation for external infrastructure.
 - `concurrency.md`: In-process async locking (SemaphoreSlim, keyed locks), thread pool safety, Parallel.ForEachAsync limits, EF Core optimistic concurrency tokens, and PostgreSQL advisory locks.
 - `database-migrations.md`: Zero-downtime Expand/Contract schema evolution, lock-safe DDL (CONCURRENTLY, NOT VALID), CI/CD idempotent SQL scripts, and bulk backfills.
 - `messaging.md`: Distributed messaging, solving dual-write with MassTransit Transactional Outbox, idempotent consumers (the Inbox), exponential retry, and dead-letter queues.
+- `multi-tenancy.md`: SaaS tenant isolation, EF Core automatic Global Query Filters, SaveChangesInterceptor tenant enforcement, and tenant-scoped caching.
 - `observability.md`: OpenTelemetry tracing and metrics, zero-allocation `[LoggerMessage]`, data redaction, and built-in health probes.
 - `hosted-services.md`: Resilient BackgroundService loops, scoped DI resolution via IServiceScopeFactory, PeriodicTimer, and bounded channels.
 - `efcore.md`: EF Core query tuning, split queries, complex types, global query filters, and transactional outbox.

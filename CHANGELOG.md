@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added reference for 3-phase Expand/Contract (parallel run) schema changes, lock-safe DDL (PostgreSQL `CONCURRENTLY` with `suppressTransaction: true`, `ADD CONSTRAINT ... NOT VALID`), CI/CD idempotent SQL script generation (`--idempotent`), and batched raw SQL backfills.
 - **Distributed Messaging & Transactional Outbox Reference (`skills/dotnet/references/messaging.md`):**
   - Added reference for solving the dual-write problem via the Transactional Outbox pattern, MassTransit EF Core Outbox integration, idempotent consumers (the Inbox pattern), exponential backoff with jitter, dead-letter queues, and in-memory test harnesses (`ITestHarness`).
+- **Multi-Tenancy & Tenant Isolation Reference (`skills/dotnet/references/multi-tenancy.md`):**
+  - Added reference for automated tenant isolation via EF Core Global Query Filters, `SaveChangesInterceptor` automatic tenant assignment, ambient tenant resolution (JWT/headers), multi-tenant cache partitioning (`tenant:{id}:key`), and tenant context propagation across background queues.
 
 ## [1.2.0] - 2026-11-03
 

@@ -1,10 +1,10 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; concurrency, synchronization, and locks; distributed messaging, outbox pattern, and MassTransit; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency, race condition, dual-write). For creating a new solution, project, or feature slice use dotnet-scaffold; for FastEndpoints use the fastendpoints skill; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
+description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; concurrency, synchronization, and locks; distributed messaging, outbox pattern, and MassTransit; multi-tenancy, tenant isolation, and global query filters; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency, race condition, dual-write). For creating a new solution, project, or feature slice use dotnet-scaffold; for FastEndpoints use the fastendpoints skill; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
 license: MIT
 metadata:
   author: Timy
-  version: "1.5"
+  version: "1.6"
 ---
 
 # .NET Engineering
@@ -53,6 +53,7 @@ Before implementation, determine the smallest set of concerns involved:
 | EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, outbox, or schema evolution |
 | Zero-downtime migrations, schema evolution, lock-safe DDL | Read `references/database-migrations.md` when adding, modifying, or removing database columns or indexes in production |
 | Distributed messaging, outbox pattern, MassTransit, message brokers | Read `references/messaging.md` when publishing/consuming messages across processes, brokers, or outbox tables |
+| Multi-tenancy, tenant isolation, global query filters | Read `references/multi-tenancy.md` when isolating tenant data, resolving tenant contexts, or scoping caches |
 | Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
 | Concurrency, thread safety, locks, Parallel.ForEachAsync | Read `references/concurrency.md` when coordinating parallel tasks, async locks, or race conditions |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
