@@ -277,13 +277,19 @@ public override void Configure()
 }
 ```
 
-### 2. Scalar Pipeline Configuration (`Program.cs`)
-Expose the OpenAPI spec at `/openapi/{documentName}.json` so `Scalar` detects it automatically:
+### 2. Scalar & Native OpenAPI Pipeline (`Program.cs`)
+Use `FastEndpoints.OpenApi` instead of legacy `FastEndpoints.Swagger` (NSwag). It registers with ASP.NET Core's native `Microsoft.AspNetCore.OpenApi` engine, so `app.MapOpenApi()` serves the spec and Scalar discovers it directly:
 
 ```csharp
+using FastEndpoints;
+using FastEndpoints.OpenApi;
+using Scalar.AspNetCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
 builder.Services
     .AddFastEndpoints()
-    .SwaggerDocument(); // FastEndpoints.Swagger package
+    .OpenApiDocument(); // FastEndpoints.OpenApi package
 
 var app = builder.Build();
 
@@ -291,7 +297,9 @@ app.UseFastEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwaggerGen(c => c.Path = "/openapi/{documentName}.json");
+    app.MapOpenApi(); // Serves /openapi/v1.json via framework
     app.MapScalarApiReference(); // Accessible at /scalar/v1
 }
+
+app.Run();
 ```
