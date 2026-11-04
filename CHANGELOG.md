@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Standardized Minimal API routing on native BCL `MapGroup` static extension methods (`Microsoft.AspNetCore.Routing`), replacing reflection-based `IEndpoint` interfaces.
   - Rebranded "Personal defaults" to "Modern greenfield defaults" for public credibility and Native AOT trim safety.
   - Updated `SliceTemplate` in `dotnet-scaffold` to use static `MapOrderEndpoints` and removed `IEndpoint.cs`.
+- **Concurrency & Synchronization Reference (`skills/dotnet/references/concurrency.md`):**
+  - Added dedicated reference for in-process async synchronization (`SemaphoreSlim`, keyed locks, `Interlocked`), thread pool safety, bounded `Parallel.ForEachAsync` limits, EF Core optimistic concurrency tokens (`[Timestamp]`), and PostgreSQL advisory locks.
 
 ## [1.2.0] - 2026-11-03
 

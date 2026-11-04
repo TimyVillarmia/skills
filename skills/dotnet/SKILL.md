@@ -1,10 +1,10 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency). For creating a new solution, project, or feature slice use dotnet-scaffold; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
+description: Use when building, modifying, debugging, architecting, or reviewing .NET/C# — C# language, async, and AOT/trimming; ASP.NET Core Minimal APIs, OpenAPI, problem details, and exception handling; OpenTelemetry, logging, metrics, and health checks; background workers, hosted services, and channels; EF Core, queries, migrations, and transactional outbox; concurrency, synchronization, and locks; architecture, CQRS, and Vertical Slice; performance and benchmarking; auth/authz, tenant boundaries, and security; code review; or NuGet/project files (.cs, .csproj, .sln/.slnx). Use even when the request describes symptoms without naming .NET (slow Includes, N+1, endpoint auth/status codes, ValueTask, tenant boundaries, idempotency, race condition). For creating a new solution, project, or feature slice use dotnet-scaffold; for FastEndpoints use the fastendpoints skill; for package/API evidence search NuGet or official documentation; for Aspire workflows use the Aspire skill when available.
 license: MIT
 metadata:
   author: Timy
-  version: "1.2"
+  version: "1.3"
 ---
 
 # .NET Engineering
@@ -52,6 +52,7 @@ Before implementation, determine the smallest set of concerns involved:
 | Architecture, boundaries, CQRS, Vertical Slice | Read `references/architecture.md` when the task changes structure, dependency direction, or module boundaries |
 | EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, outbox, or schema evolution |
 | Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
+| Concurrency, thread safety, locks, Parallel.ForEachAsync | Read `references/concurrency.md` when coordinating parallel tasks, async locks, or race conditions |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
 | Authentication, authorization, untrusted input, secrets | Read `references/security.md` when the task handles identity, access control, or attacker-reachable input |
 | Reviewing a diff, PR, or completed change | Read `references/review.md` when reviewing rather than implementing |
