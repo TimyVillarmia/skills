@@ -36,6 +36,8 @@ Do not expose persistence entities directly when doing so couples the contract t
 
 Use the style already established by the project. For new minimal APIs, prefer endpoint handlers that are thin and delegate application behavior to a handler/service/use case.
 
+If the project uses or references `FastEndpoints`, defer to the `fastendpoints` skill for REPR pattern conventions, `Endpoint<TRequest, TResponse>`, and `FastEndpoints.Testing`.
+
 For .NET 10/C# 14, use modern APIs such as `TypedResults`, endpoint filters, built-in validation facilities, `ProblemDetails`, and built-in OpenAPI support where they fit the project.
 
 `TypedResults` is often preferable because the declared return type communicates the response contract, but `IResult`/`Results` remain valid when the surrounding API intentionally uses them or when the broader contract is clearer that way.

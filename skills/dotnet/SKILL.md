@@ -57,6 +57,7 @@ Before implementation, determine the smallest set of concerns involved:
 | Reviewing a diff, PR, or completed change | Read `references/review.md` when reviewing rather than implementing |
 | Finding evidence for packages, APIs, or version diffs | Search NuGet, inspect project packages, or use official documentation |
 | .NET Aspire-specific workflow or current Aspire APIs | Use the official Aspire Agent Skill when available |
+| FastEndpoints framework, REPR pattern, or FastEndpoints.Testing | Use the `fastendpoints` skill |
 
 If a task crosses multiple areas, read only the smallest combination of references that covers the affected decisions. Do not load unrelated references merely because they exist.
 

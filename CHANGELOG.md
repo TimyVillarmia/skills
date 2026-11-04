@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-04
+
+### Added
+- **FastEndpoints Skill (`skills/fastendpoints`):**
+  - Dedicated agent skill for FastEndpoints and the REPR (Request-Endpoint-Response) pattern in ASP.NET Core (.NET 8/9/10).
+  - Progressive disclosure hierarchy with `SKILL.md` under 150 lines and specialized deep references:
+    - `references/endpoint.md`: Endpoint generic variants, route groups, model binding, `Send*Async` status methods, domain mapping, and Native AOT support.
+    - `references/validation.md`: Integrated FluentValidation, automatic 400 ProblemDetails interception, and in-handler programmatic validation.
+    - `references/security.md`: JWT authentication, roles, policies, permission sets, claims-to-property binding, rate limiting, and API versioning.
+    - `references/messaging.md`: Built-in in-process Command Bus, Event Bus (pub/sub), persistent Job Queues, and Server-Sent Events (SSE).
+    - `references/testing.md`: Strongly-typed integration testing using `FastEndpoints.Testing`, `AppFixture`, and type-safe `POSTAsync`/`GETAsync` HTTP clients.
+- **Ecosystem Routing (`skills/dotnet`):**
+  - Added router entry in `skills/dotnet/SKILL.md` and `skills/dotnet/references/api.md` deferring to `fastendpoints` when FastEndpoints packages or patterns are detected.
+
 ## [1.2.0] - 2026-11-03
 
 ### Added
