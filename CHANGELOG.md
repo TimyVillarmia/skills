@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added dedicated reference for in-process async synchronization (`SemaphoreSlim`, keyed locks, `Interlocked`), thread pool safety, bounded `Parallel.ForEachAsync` limits, EF Core optimistic concurrency tokens (`[Timestamp]`), and PostgreSQL advisory locks.
 - **Zero-Downtime Database Migrations Reference (`skills/dotnet/references/database-migrations.md`):**
   - Added reference for 3-phase Expand/Contract (parallel run) schema changes, lock-safe DDL (PostgreSQL `CONCURRENTLY` with `suppressTransaction: true`, `ADD CONSTRAINT ... NOT VALID`), CI/CD idempotent SQL script generation (`--idempotent`), and batched raw SQL backfills.
+- **Distributed Messaging & Transactional Outbox Reference (`skills/dotnet/references/messaging.md`):**
+  - Added reference for solving the dual-write problem via the Transactional Outbox pattern, MassTransit EF Core Outbox integration, idempotent consumers (the Inbox pattern), exponential backoff with jitter, dead-letter queues, and in-memory test harnesses (`ITestHarness`).
 
 ## [1.2.0] - 2026-11-03
 
