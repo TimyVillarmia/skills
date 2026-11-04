@@ -136,9 +136,12 @@ public static class OrderEndpoints
         return group;
     }
 
-    private static async Task<Results<Ok<OrderDto>, NotFound>> GetOrderById(Guid id, IOrderService service)
+    private static async Task<Results<Ok<OrderDto>, NotFound>> GetOrderById(
+        Guid id,
+        IOrderService service,
+        CancellationToken ct)
     {
-        var order = await service.GetByIdAsync(id);
+        var order = await service.GetByIdAsync(id, ct);
         return order is not null ? TypedResults.Ok(order) : TypedResults.NotFound();
     }
 }

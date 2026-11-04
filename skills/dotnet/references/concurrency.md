@@ -144,7 +144,7 @@ When synchronizing across multiple application instances (without introducing an
 ```csharp
 public sealed class DistributedTaskCoordinator(NpgsqlDataSource dataSource)
 {
-    public async Task<bool> TryExecuteExclusiveAsync(long lockId, Func<Task> task, CancellationToken ct)
+    public async Task<bool> TryExecuteExclusiveAsync(long lockId, Func<CancellationToken, Task> task, CancellationToken ct)
     {
         await using var connection = await dataSource.OpenConnectionAsync(ct);
         await using var transaction = await connection.BeginTransactionAsync(ct);
@@ -160,7 +160,7 @@ public sealed class DistributedTaskCoordinator(NpgsqlDataSource dataSource)
             return false; // Another node is currently executing this task
         }
 
-        await task();
+        await task(ct);
         await transaction.CommitAsync(ct);
         return true;
     }

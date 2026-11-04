@@ -49,9 +49,10 @@ app.MapGet("/orders/{id:guid}", async (
     Guid id,
     OrderDbContext db,
     IAuthorizationService authService,
-    ClaimsPrincipal user) =>
+    ClaimsPrincipal user,
+    CancellationToken ct) =>
 {
-    var order = await db.Orders.FindAsync(id);
+    var order = await db.Orders.FindAsync([id], ct);
     if (order is null)
     {
         return TypedResults.NotFound();
