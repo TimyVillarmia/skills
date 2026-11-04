@@ -1,12 +1,12 @@
-# Agent Skills
+# Agent skills
 
-Curated, tool-agnostic AI agent skills for modern software engineering and architecture. Designed for use with Antigravity, Claude Code, Cursor, GitHub Copilot, and any LLM coding assistant supporting agent skills.
+AI agent skills for software engineering and architecture. Built for Antigravity, Claude Code, Cursor, GitHub Copilot, and LLM coding tools that support skills.
 
 ## Installation
 
 ### Via `npx skills` ([skills.sh](https://skills.sh))
 
-Install the entire skills collection into your current workspace:
+Install the full skills collection into your current workspace:
 
 ```bash
 npx skills add TimyVillarmia/skills
@@ -15,16 +15,19 @@ npx skills add TimyVillarmia/skills
 Or install individual skills:
 
 ```bash
-# Core .NET engineering skill (C#, EF Core, API, architecture, performance, security, observability, hosted services)
+# Core .NET engineering rules (C#, EF Core, APIs, architecture, security, testing)
 npx skills add TimyVillarmia/skills/skills/dotnet
+
+# FastEndpoints REPR pattern (endpoints, validation, security, testing)
+npx skills add TimyVillarmia/skills/skills/fastendpoints
 
 # .NET solution, project, and vertical slice scaffolding
 npx skills add TimyVillarmia/skills/skills/dotnet-scaffold
 ```
 
-### Manual Installation
+### Manual installation
 
-Clone or copy the desired skill directory into your project's `.agents/skills/` or `~/.agents/skills/`:
+Clone or copy the skill directory into `.agents/skills/` or `~/.agents/skills/`:
 
 ```bash
 git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
@@ -32,35 +35,43 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 
 ---
 
-## Included Skills
+## Included skills
 
 ### 1. `dotnet`
-Comprehensive engineering rules and task routing for modern .NET (targeting .NET 10 LTS):
-- **`csharp.md`:** Modern C# idioms, primary constructors, pattern matching, async ValueTask vs Task guidance, System.Text.Json source generation, and Native AOT constraints.
-- **`api.md`:** ASP.NET Core Minimal APIs, OpenAPI transformers, centralized `IExceptionHandler` / `ProblemDetails`, and API versioning with `Asp.Versioning.Http`.
-- **`observability.md`:** OpenTelemetry tracing and metrics, zero-allocation `[LoggerMessage]`, data redaction, and built-in JSON liveness/readiness health check probes.
-- **`hosted-services.md`:** Resilient `BackgroundService` execution model, scoped DI resolution via `IServiceScopeFactory`, `PeriodicTimer`, and bounded `Channel<T>` producer/consumer patterns.
-- **`efcore.md`:** EF Core query optimization, split queries vs single queries, complex types vs owned entities, global query filters, and transactional outbox pattern.
-- **`architecture.md`:** Vertical Slice architecture, CQRS boundaries, mapper generator trade-offs (Riok.Mapperly), and dependency direction.
-- **`performance.md`:** Allocation auditing, Span/Memory usage, and BenchmarkDotNet standards.
-- **`security.md`:** Authentication, default-deny `FallbackPolicy`, resource-based authorization (`IAuthorizationService`), BOLA / mass-assignment prevention, and cryptographic safety.
-- **`testing.md`:** Modern testing architecture with current `MSTest.Sdk` (Microsoft.Testing.Platform runner mode), xUnit v3, and Testcontainers with Respawn for relational databases.
-- **`review.md`:** Structured code review checklist and strict output contract (Severity, Location, Finding, Evidence, Recommended Fix).
+Engineering standards and task routing for .NET 10 LTS. Includes 10 domain reference guides:
+- `csharp.md`: C# idioms, primary constructors, pattern matching, async ValueTask vs Task choices, and JSON source generation for Native AOT.
+- `api.md`: Minimal APIs, OpenAPI transformers, centralized Problem Details error handlers, and API versioning with Asp.Versioning.Http.
+- `architecture.md`: Vertical slice design, CQRS boundaries, mapper source generators (Riok.Mapperly), and mandatory `ValidateOnStart()` options validation for external infrastructure.
+- `observability.md`: OpenTelemetry tracing and metrics, zero-allocation `[LoggerMessage]`, data redaction, and built-in health probes.
+- `hosted-services.md`: Resilient BackgroundService loops, scoped DI resolution via IServiceScopeFactory, PeriodicTimer, and bounded channels.
+- `efcore.md`: EF Core query tuning, split queries, complex types, global query filters, and transactional outbox.
+- `performance.md`: Allocation tracking, Span and Memory usage, and BenchmarkDotNet rules.
+- `security.md`: Authentication, default-deny policies, resource authorization, and cryptographic safety.
+- `testing.md`: MSTest.Sdk on Microsoft.Testing.Platform, xUnit v3, and Testcontainers with Respawn for relational databases.
+- `review.md`: Code review checklist with structured findings (severity, location, finding, evidence, fix).
 
-### 2. `dotnet-scaffold`
-Deterministic scaffolding for new .NET solutions, test projects, and vertical slices:
-- **`scripts/scaffold.cs`:** Cross-platform single-file C# scaffolding runner (`dotnet run scaffold.cs`) targeting .NET 10 LTS.
-- **`assets/`:** Pre-configured `Directory.Build.props`, `Directory.Packages.props` (Central Package Management), `global.json` (`MSTest.Sdk` + MTP runner), `.editorconfig`, and `SliceTemplate/` (local Result type, `IEndpoint`, typed Minimal API endpoint, handler, and request/response DTOs).
-- **Solution layout:** Modern `.slnx` solution format with strict build & test verification in both Debug and Release configurations.
+### 2. `fastendpoints`
+REPR (Request-Endpoint-Response) pattern architecture for ASP.NET Core APIs:
+- `endpoint.md`: Class-per-endpoint definitions (`Endpoint<TReq, TRes>`), route groups, model binding attributes (`[FromClaim]`), `Send*Async` status methods, and Native AOT support.
+- `validation.md`: Integrated FluentValidation rules via `Validator<TRequest>`, automatic 400 Problem Details interception, and in-handler error accumulation.
+- `security.md`: Authentication defaults, `AllowAnonymous()`, policies, permissions, claims binding, and endpoint throttling.
+- `messaging.md`: In-process Command Bus (`ICommand<TResult>`), Event Bus (pub/sub), background Job Queues, and Server-Sent Events.
+- `testing.md`: Type-safe integration testing with FastEndpoints.Testing, AppFixture, and generic `POSTAsync`/`GETAsync` HTTP clients.
+
+### 3. `dotnet-scaffold`
+Deterministic project generation for solutions, test projects, and vertical slices:
+- `scripts/scaffold.cs`: Cross-platform C# runner (`dotnet run scaffold.cs`) targeting .NET 10 LTS.
+- `assets/`: Central Package Management (`Directory.Packages.props`), common build properties (`Directory.Build.props`), `global.json`, `.editorconfig`, and a vertical slice template.
+- Solution layout: Modern `.slnx` format with automated Debug and Release validation.
 
 ---
 
 ## Evaluations
 
 Skill routing and trigger behavior are validated using test matrices under `evals/`:
-- `evals/evals.json`: Comprehensive test cases with objective and executable assertions for `dotnet` and `dotnet-scaffold`.
-- `evals/trigger-queries.json`: Portable 20-query evaluation set (60/40 train/validation split).
-- `evals/trigger-results.md`: Benchmarked activation rates, recall (100%), precision (100%), and zero-variance stability across independent runs.
+- `evals/evals.json`: Test cases with executable assertions for `dotnet`, `fastendpoints`, and `dotnet-scaffold`.
+- `evals/trigger-queries.json`: Portable evaluation query set across training and validation splits.
+- `evals/trigger-results.md`: Benchmarked activation rates, recall (100%), and precision (100%).
 
 ---
 
