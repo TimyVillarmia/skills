@@ -4,7 +4,7 @@ description: Use when building, modifying, debugging, architecting, or reviewing
 license: MIT
 metadata:
   author: Timy
-  version: "1.3"
+  version: "1.4"
 ---
 
 # .NET Engineering
@@ -51,6 +51,7 @@ Before implementation, determine the smallest set of concerns involved:
 | Background work, hosted services, periodic jobs, channels | Read `references/hosted-services.md` when implementing BackgroundService, periodic timers, producer/consumer channels, or shutdown lifecycles |
 | Architecture, boundaries, CQRS, Vertical Slice | Read `references/architecture.md` when the task changes structure, dependency direction, or module boundaries |
 | EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, outbox, or schema evolution |
+| Zero-downtime migrations, schema evolution, lock-safe DDL | Read `references/database-migrations.md` when adding, modifying, or removing database columns or indexes in production |
 | Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
 | Concurrency, thread safety, locks, Parallel.ForEachAsync | Read `references/concurrency.md` when coordinating parallel tasks, async locks, or race conditions |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
