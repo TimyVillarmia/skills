@@ -112,20 +112,42 @@ Always verify version-sensitive APIs and behavior against the repository's actua
 
 ## API and application structure
 
-For Minimal API applications, prefer clear endpoint organization that matches the size and architecture of the application.
-
-For larger APIs or feature/vertical-slice-oriented applications, a small endpoint abstraction such as `IEndpoint` is a useful personal default when it improves discoverability, registration, and separation of HTTP concerns from application logic. Keep the abstraction small and framework-aligned.
+For Minimal API applications, organize routing with native `MapGroup` static extension methods rather than dumping route registrations into `Program.cs` or inventing custom reflection-based interfaces.
 
 Example:
 
 ```csharp
-public interface IEndpoint
+public static class OrderEndpoints
 {
-    void Map(IEndpointRouteBuilder endpoints);
+    public static RouteGroupBuilder MapOrderEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/orders")
+            .WithTags("Orders")
+            .RequireAuthorization();
+
+        group.MapGet("/", GetOrders);
+        group.MapGet("/{id:guid}", GetOrderById);
+        group.MapPost("/", CreateOrder);
+
+        return group;
+    }
+
+    private static async Task<Results<Ok<OrderDto>, NotFound>> GetOrderById(Guid id, IOrderService service)
+    {
+        var order = await service.GetByIdAsync(id);
+        return order is not null ? TypedResults.Ok(order) : TypedResults.NotFound();
+    }
 }
 ```
 
-This is a personal/project pattern, not a universal .NET requirement. Do not introduce `IEndpoint` into an existing project merely because this skill recommends it. Follow an established endpoint organization unless there is a concrete reason to change it. For small APIs, direct route registration may be clearer.
+In `Program.cs`:
+```csharp
+app.MapOrderEndpoints();
+```
+
+This pattern is native BCL (`Microsoft.AspNetCore.Routing`), zero-allocation, 100% Native AOT trim-safe, and requires zero third-party packages or startup reflection scanning.
+
+If the application requires full class-per-endpoint REPR architecture, defer to the `fastendpoints` skill.
 
 When designing endpoints, read `references/api.md`.
 
@@ -202,15 +224,15 @@ This skill still applies to general .NET engineering decisions around an Aspire 
 
 If the official Aspire skill is unavailable, follow the repository's existing Aspire conventions and verify version-sensitive behavior against official Aspire documentation rather than relying on remembered APIs.
 
-## Personal defaults
+## Modern greenfield defaults
 
-These are defaults for genuinely new projects or new architecture where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
+These are defaults for genuinely new projects or unconstrained features where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
 
 - CQRS where separate command/query models provide value.
-- Direct handler/use-case injection for Minimal APIs; in-process mediator (such as `Mediator.SourceGenerator` or Martinothamar.Mediator) only when cross-cutting pipeline behaviors justify the abstraction.
+- Direct handler/use-case injection for Minimal APIs; in-process mediator only when cross-cutting pipeline behaviors justify the abstraction.
 - A Result/ErrorOr-style result model for expected application failures.
 - Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as `Riok.Mapperly`).
-- `IEndpoint` (or `IEndpointGroup` for route prefixes/auth grouping) for feature-oriented Minimal API endpoint organization when the application is large enough to benefit from the abstraction.
+- Native `MapGroup` static extension methods on `IEndpointRouteBuilder` for modular Minimal API route organization; defer to `fastendpoints` for class-per-endpoint REPR architecture.
 - Built-in OpenAPI (`builder.Services.AddOpenApi()`) paired with `Scalar.AspNetCore` for interactive API documentation in development.
 - `Microsoft.Extensions.Http.Resilience` (`AddStandardResilienceHandler()`) for client HTTP resilience.
 - `Microsoft.Extensions.Caching.Hybrid` (`HybridCache`) for high-performance multi-tier caching with stampede protection in .NET 9+.

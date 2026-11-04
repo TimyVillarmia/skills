@@ -52,7 +52,7 @@ For a project that already uses a different architecture, mediator, mapper, Resu
 Expected behavior:
 
 - Follow the existing project architecture and dependencies.
-- Do not introduce `IEndpoint`, Martinothamar.Mediator, or another personal default merely because the skill prefers them for greenfield work.
+- Do not rewrite controllers into Minimal APIs or introduce a new architecture merely because the skill prefers them for greenfield work.
 - Make the smallest change consistent with the repository.
 
 ## Greenfield behavior

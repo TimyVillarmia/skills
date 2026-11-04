@@ -5,11 +5,14 @@ using Microsoft.AspNetCore.Routing;
 
 namespace SliceTemplate;
 
-public sealed class OrderEndpoint : IEndpoint
+public static class OrderEndpoints
 {
-    public void Map(IEndpointRouteBuilder endpoints)
+    public static RouteGroupBuilder MapOrderEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/orders", async Task<Results<Created<OrderResponse>, ProblemHttpResult>> (
+        var group = endpoints.MapGroup("/orders")
+            .WithTags("Orders");
+
+        group.MapPost("/", async Task<Results<Created<OrderResponse>, ProblemHttpResult>> (
             CreateOrderRequest request,
             CreateOrderHandler handler,
             CancellationToken ct) =>
@@ -23,5 +26,7 @@ public sealed class OrderEndpoint : IEndpoint
                     title: error.Code));
         })
         .WithName("CreateOrder");
+
+        return group;
     }
 }

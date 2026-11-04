@@ -61,38 +61,40 @@ Avoid mixing substantial business logic, persistence queries, and authorization 
 
 ### Endpoint and Route Group Organization
 
-For applications with multiple endpoints per domain/resource, prefer route groups to organize routing, common prefixes, tags, and authorization policies cohesively:
+For applications with multiple endpoints per domain/resource, organize endpoints into static classes with native `MapGroup` extension methods on `IEndpointRouteBuilder`. This groups routing, common prefixes, tags, and authorization policies cohesively without reflection overhead:
 
 ```csharp
-public interface IEndpointGroup
+public static class UserEndpoints
 {
-    void Map(RouteGroupBuilder group);
-}
-
-// Extension for clean Program.cs registration:
-public static class EndpointRouteBuilderExtensions
-{
-    public static RouteGroupBuilder MapGroup(
-        this IEndpointRouteBuilder endpoints,
-        string prefix,
-        Action<RouteGroupBuilder> configure)
+    public static RouteGroupBuilder MapUserEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = endpoints.MapGroup(prefix);
-        configure(group);
+        var group = app.MapGroup("/api/users")
+            .WithTags("Users")
+            .RequireAuthorization();
+
+        group.MapGet("/{id:guid}", GetUserById);
+        group.MapPost("/", CreateUser);
+
         return group;
+    }
+
+    private static async Task<Results<Ok<UserDto>, NotFound>> GetUserById(
+        Guid id,
+        IUserQueries queries,
+        CancellationToken ct)
+    {
+        var user = await queries.GetAsync(id, ct);
+        return user is not null ? TypedResults.Ok(user) : TypedResults.NotFound();
     }
 }
 ```
 
-Example grouped feature:
+In `Program.cs`:
 ```csharp
-var users = app.MapGroup("/api/users")
-    .WithTags("Users")
-    .RequireAuthorization();
-
-users.MapGet("/{id:guid}", GetUserById);
-users.MapPost("/", CreateUser);
+app.MapUserEndpoints();
 ```
+
+This pattern is 100% Native AOT trim-safe, requires no reflection scanning or custom interfaces, and cascades authorization, filters, and OpenAPI metadata across the group.
 
 ## HTTP semantics
 

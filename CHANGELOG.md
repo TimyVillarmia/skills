@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `references/testing.md`: Strongly-typed integration testing using `FastEndpoints.Testing`, `AppFixture`, and type-safe `POSTAsync`/`GETAsync` HTTP clients.
 - **Ecosystem Routing (`skills/dotnet`):**
   - Added router entry in `skills/dotnet/SKILL.md` and `skills/dotnet/references/api.md` deferring to `fastendpoints` when FastEndpoints packages or patterns are detected.
+- **Native Endpoint Organization (`skills/dotnet`, `skills/dotnet-scaffold`):**
+  - Standardized Minimal API routing on native BCL `MapGroup` static extension methods (`Microsoft.AspNetCore.Routing`), replacing reflection-based `IEndpoint` interfaces.
+  - Rebranded "Personal defaults" to "Modern greenfield defaults" for public credibility and Native AOT trim safety.
+  - Updated `SliceTemplate` in `dotnet-scaffold` to use static `MapOrderEndpoints` and removed `IEndpoint.cs`.
 
 ## [1.2.0] - 2026-11-03
 

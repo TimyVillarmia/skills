@@ -73,7 +73,7 @@ Generate complete feature slices conforming to the detected architecture:
 When working in a VSA project, use the slice pattern in `assets/SliceTemplate/`:
 ```text
 Features/<Area>/<Action>/
-├── <Action>Endpoint.cs    // Implements IEndpoint; maps route with TypedResults
+├── <Action>Endpoints.cs   // Static MapGroup extension method; maps routes with TypedResults
 ├── <Action>Request.cs     // Input DTO / parameters (sealed record)
 ├── <Action>Handler.cs     // Domain / use-case execution with CancellationToken
 └── <Action>Response.cs    // Output DTO with static From factory
