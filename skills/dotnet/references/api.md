@@ -1,0 +1,430 @@
+# API Engineering
+
+Use this reference when a .NET application exposes or consumes HTTP APIs.
+
+## Contents
+
+- [Official references](#official-references)
+- [API shape](#api-shape)
+- [Minimal APIs and controllers](#minimal-apis-and-controllers)
+- [HTTP semantics](#http-semantics)
+- [ProblemDetails and Error Handling Pipeline](#problemdetails-and-error-handling-pipeline)
+- [API Versioning](#api-versioning)
+- [Validation](#validation)
+- [OpenAPI and Interactive Documentation](#openapi-and-interactive-documentation)
+- [Pagination, filtering, and sorting](#pagination-filtering-and-sorting)
+- [Caching and state](#caching-and-state)
+- [HTTP Resilience, Idempotency, and Concurrency](#http-resilience-idempotency-and-concurrency)
+- [API anti-patterns](#api-anti-patterns)
+- [API checklist](#api-checklist)
+
+## Official references
+
+Use version-matched Microsoft documentation as the primary implementation reference:
+
+- ASP.NET Core: https://learn.microsoft.com/aspnet/core/
+- HTTP requests: https://learn.microsoft.com/aspnet/core/fundamentals/http-requests
+- ASP.NET Core OpenAPI: https://learn.microsoft.com/aspnet/core/fundamentals/openapi/aspnetcore-openapi
+- .NET: https://learn.microsoft.com/dotnet/
+- .NET API browser: https://learn.microsoft.com/dotnet/api/
+- OpenAPI specification: https://spec.openapis.org/oas/latest.html
+
+Prefer official Microsoft documentation for runtime/framework behavior and the OpenAPI Initiative specification for contract semantics. Inspect the actual target framework and package versions before relying on version-sensitive behavior.
+
+## API shape
+
+Treat the API as a public contract, even when the immediate consumer is an internal frontend.
+
+Design deliberately:
+
+- resource and operation names
+- HTTP methods and status codes
+- request/response DTOs
+- validation and error behavior
+- authentication/authorization
+- pagination/filtering/sorting
+- idempotency and concurrency
+- OpenAPI documentation
+
+Do not expose persistence entities directly when doing so couples the contract to storage concerns or risks accidental data exposure.
+
+## Minimal APIs and controllers
+
+Use the style already established by the project. For new minimal APIs, prefer endpoint handlers that are thin and delegate application behavior to a handler/service/use case.
+
+If the project uses or references `FastEndpoints`, defer to the `fastendpoints` skill for REPR pattern conventions, `Endpoint<TRequest, TResponse>`, and `FastEndpoints.Testing`.
+
+For .NET 10/C# 14, use modern APIs such as `TypedResults`, endpoint filters, built-in validation facilities, `ProblemDetails`, and built-in OpenAPI support where they fit the project.
+
+`TypedResults` is often preferable because the declared return type communicates the response contract, but `IResult`/`Results` remain valid when the surrounding API intentionally uses them or when the broader contract is clearer that way.
+
+Good:
+
+```csharp
+app.MapGet("/users/{id}", async Task<Results<Ok<UserDto>, NotFound>> (
+    Guid id,
+    IUserQueries queries,
+    CancellationToken cancellationToken) =>
+{
+    var user = await queries.GetAsync(id, cancellationToken);
+    return user is null
+        ? TypedResults.NotFound()
+        : TypedResults.Ok(user);
+});
+```
+
+Avoid mixing substantial business logic, persistence queries, and authorization decisions into a large endpoint lambda.
+
+### Endpoint and Route Group Organization
+
+For applications with multiple endpoints per domain/resource, organize endpoints into static classes with native `MapGroup` extension methods on `IEndpointRouteBuilder`. This groups routing, common prefixes, tags, and authorization policies cohesively without reflection overhead:
+
+```csharp
+public static class UserEndpoints
+{
+    public static RouteGroupBuilder MapUserEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/users")
+            .WithTags("Users")
+            .RequireAuthorization();
+
+        group.MapGet("/{id:guid}", GetUserById);
+        group.MapPost("/", CreateUser);
+
+        return group;
+    }
+
+    private static async Task<Results<Ok<UserDto>, NotFound>> GetUserById(
+        Guid id,
+        IUserQueries queries,
+        CancellationToken ct)
+    {
+        var user = await queries.GetAsync(id, ct);
+        return user is not null ? TypedResults.Ok(user) : TypedResults.NotFound();
+    }
+}
+```
+
+In `Program.cs`:
+```csharp
+app.MapUserEndpoints();
+```
+
+This pattern is 100% Native AOT trim-safe, requires no reflection scanning or custom interfaces, and cascades authorization, filters, and OpenAPI metadata across the group.
+
+## HTTP semantics
+
+Use semantics based on externally observable behavior:
+
+- `GET` retrieves and should not mutate state.
+- `POST` creates or performs a non-idempotent operation where appropriate.
+- `PUT` replaces a representation and is idempotent when the contract defines it that way.
+- `PATCH` partially updates according to explicit patch semantics.
+- `DELETE` removes or logically removes according to the contract.
+
+Typical status codes:
+
+- `200 OK` — successful representation.
+- `201 Created` — resource created; provide a location when meaningful.
+- `202 Accepted` — asynchronous work accepted.
+- `204 No Content` — success with no body.
+- `400 Bad Request` — malformed/invalid request semantics.
+- `401 Unauthorized` — authentication required or invalid.
+- `403 Forbidden` — authenticated caller is not permitted.
+- `404 Not Found` — resource absent or intentionally undiscoverable.
+- `409 Conflict` — state or concurrency conflict.
+- `422 Unprocessable Content` — only when the contract deliberately distinguishes semantic validation.
+- `429 Too Many Requests` — rate limit exceeded.
+- `500 Internal Server Error` — unexpected server failure.
+
+Do not select a status code merely because an internal exception or framework type has a particular name.
+
+## ProblemDetails and Error Handling Pipeline
+
+For HTTP APIs, use RFC 9457 / RFC 7807 `ProblemDetails` as the uniform error representation.
+
+### Centralized Exception Handling with `IExceptionHandler`
+Configure centralized exception handling rather than catching unexpected exceptions in endpoints:
+
+```csharp
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        ctx.ProblemDetails.Instance = $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}";
+        ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
+    };
+});
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+app.UseExceptionHandler(); // Invokes registered IExceptionHandler chain
+```
+
+#### Exception Handler Implementation:
+```csharp
+public sealed class GlobalExceptionHandler(
+    IProblemDetailsService problemDetailsService,
+    ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        logger.LogError(exception, "Unhandled exception occurred: {Message}", exception.Message);
+
+        var statusCode = exception switch
+        {
+            BadHttpRequestException => StatusCodes.Status400BadRequest,
+            _ => StatusCodes.Status500InternalServerError
+        };
+
+        var problemDetails = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = statusCode == StatusCodes.Status400BadRequest
+                ? "Bad Request"
+                : "Internal Server Error",
+            Detail = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
+                ? exception.ToString()
+                : "An unexpected error occurred."
+        };
+
+        httpContext.Response.StatusCode = statusCode;
+        return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            Exception = exception,
+            ProblemDetails = problemDetails
+        });
+    }
+}
+```
+
+### Result-to-HTTP Status Code Mapping
+If the application uses a Result/ErrorOr-style model, translate expected domain failures at the endpoint boundary into explicit typed HTTP results:
+
+```csharp
+return result.MatchFirst<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpResult>>(
+    success => TypedResults.Ok(UserResponse.From(success)),
+    error => error.Type switch
+    {
+        ErrorType.NotFound => TypedResults.NotFound(),
+        ErrorType.Conflict => TypedResults.Conflict(),
+        _ => TypedResults.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            detail: error.Description,
+            title: error.Code)
+    });
+```
+
+---
+
+## API Versioning
+
+Use `Asp.Versioning.Http` paired with `Asp.Versioning.OpenApi` for Minimal API versioning and .NET 10 built-in OpenAPI integration (resolve the latest stable versions via `dotnet package search Asp.Versioning.Http --exact-match`):
+
+```xml
+<PackageReference Include="Asp.Versioning.Http" />
+<PackageReference Include="Asp.Versioning.OpenApi" />
+```
+
+Define versions through route version sets and expose per-version OpenAPI documents:
+
+```csharp
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+}).AddOpenApi();
+
+var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi().WithDocumentPerVersion();
+}
+
+var versionSet = app.NewApiVersionSet()
+    .HasApiVersion(new ApiVersion(1, 0))
+    .HasApiVersion(new ApiVersion(2, 0))
+    .ReportApiVersions()
+    .Build();
+
+var orders = app.MapGroup("/api/v{version:apiVersion}/orders")
+    .WithApiVersionSet(versionSet);
+
+orders.MapGet("/", GetOrdersV1).MapToApiVersion(1, 0);
+orders.MapGet("/", GetOrdersV2).MapToApiVersion(2, 0);
+```
+
+---
+
+## Validation
+
+Validate request shape and basic constraints at the boundary. Enforce business invariants in the application/domain layer.
+
+Avoid duplicating identical rules across multiple layers. Each layer should validate the invariants it owns.
+
+For .NET 10, enable built-in Minimal API source-generated DataAnnotations validation via `builder.Services.AddValidation()` (short-circuits invalid requests with `400 Bad Request` `ProblemDetails`; opt out per endpoint with `.DisableValidation()`). If the project already uses FluentValidation or another established validator, follow that convention.
+
+```csharp
+builder.Services.AddValidation();
+app.MapPost("/products", (CreateProductRequest req) => TypedResults.Ok(req));
+app.MapPost("/webhooks/raw", (RawPayload req) => TypedResults.Ok()).DisableValidation();
+```
+
+Never treat client-side validation as a security control.
+
+## OpenAPI and Interactive Documentation
+
+Keep generated documentation aligned with actual behavior. Document meaningful descriptions, parameters, request/response schemas, auth requirements, and error responses.
+
+- **Built-in ASP.NET Core OpenAPI (`Microsoft.AspNetCore.OpenApi`):**
+  In .NET 10 / ASP.NET Core 10, OpenAPI 3.1 is generated by the framework directly:
+  ```csharp
+  builder.Services.AddOpenApi();
+  ```
+  Never use `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core automatically discovers and documents Minimal API endpoints.
+
+- **Scalar API Reference (`Scalar.AspNetCore`):**
+  For developer-facing interactive documentation, prefer **Scalar** over legacy Swashbuckle:
+  ```csharp
+  if (app.Environment.IsDevelopment())
+  {
+      app.MapOpenApi();
+      app.MapScalarApiReference(); // Accessible at /scalar/v1
+  }
+  ```
+
+## Pagination, filtering, and sorting
+
+For collections:
+
+- bound result sizes
+- define pagination semantics explicitly
+- apply stable ordering before pagination
+- validate page size and filters
+- allow-list sortable/filterable fields
+- avoid arbitrary database expressions from clients
+
+Offset pagination is simple and often sufficient. Keyset/cursor pagination is worth considering for large or frequently changing datasets.
+
+## Caching and state
+
+### 1. Application / Data Caching: `HybridCache` (.NET 9+)
+For in-memory and distributed data caching, prefer `Microsoft.Extensions.Caching.Hybrid` over raw `IDistributedCache` or `IMemoryCache`. It delivers a unified L1 (in-process) + L2 (distributed) cache with built-in stampede protection (coalesced concurrent requests):
+
+```csharp
+builder.Services.AddHybridCache(options =>
+{
+    options.DefaultEntryOptions = new HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromMinutes(5),
+        LocalCacheExpiration = TimeSpan.FromMinutes(1)
+    };
+});
+
+// Consuming in endpoints/handlers:
+public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
+{
+    public async Task<UserResponse?> HandleAsync(Guid id, CancellationToken ct)
+    {
+        return await cache.GetOrCreateAsync(
+            $"user-{id}",
+            async token =>
+            {
+                var user = await db.Users.FindAsync([id], token);
+                return user is null ? null : UserResponse.From(user);
+            },
+            tags: ["users"],
+            cancellationToken: ct);
+    }
+}
+```
+
+### 2. HTTP Output Caching: `app.UseOutputCache()`
+For caching rendered HTTP responses on the server side, prefer Output Caching over legacy `ResponseCaching`. Output Caching supports distributed backends, eviction policies, and route cache tags (`.CacheOutput(p => p.Tag("products"))`).
+
+### 3. Minimal API Anti-Forgery (CSRF)
+In ASP.NET Core Minimal APIs, anti-forgery is enforced via the native antiforgery middleware:
+
+```csharp
+builder.Services.AddAntiforgery();
+// ...
+app.UseAntiforgery(); // Must be placed between UseAuthentication/UseAuthorization and endpoints
+```
+
+- **Native Form Binding (`[FromForm]`):** Endpoints that accept form parameters via `[FromForm]` automatically validate the antiforgery token. Tokenless or invalid requests are rejected with `400 Bad Request`.
+- **Manual Form Parsing:** If an endpoint reads `context.Request.ReadFormAsync()` directly without `[FromForm]`, automatic token validation does **not** occur. Inject `IAntiforgery antiforgery` into the endpoint handler and call `await antiforgery.ValidateRequestAsync(context)`.
+- **Opt-out:** Call `.DisableAntiforgery()` on specific endpoints that accept external webhooks or machine-to-machine form posts.
+- **Do not use MVC attributes:** Attributes such as `[ValidateAntiForgeryToken]` or non-existent methods like `.RequireAntiforgery()` do not protect Minimal APIs.
+
+## HTTP Resilience, Idempotency, and Concurrency
+
+### HTTP Client Resilience (`Microsoft.Extensions.Http.Resilience`)
+For outbound HTTP communication, use Microsoft's official `Microsoft.Extensions.Http.Resilience` package:
+
+```csharp
+builder.Services.AddHttpClient<InventoryClient>(client =>
+{
+    client.BaseAddress = new Uri("https://inventory.service.local");
+    client.Timeout = TimeSpan.FromSeconds(15);
+}).AddStandardResilienceHandler(options =>
+{
+    options.Retry.DisableForUnsafeHttpMethods();
+});
+```
+
+The standard resilience handler executes policies in this specific order (outermost to innermost):
+1. **Rate Limiter** (outermost: sheds load immediately before exhausting timeouts or retry budgets)
+2. **Total Request Timeout** (overall call deadline across all attempts)
+3. **Standard Retry** (exponential backoff with jitter on transient failures)
+4. **Circuit Breaker** (fails fast when failure rate exceeds threshold)
+5. **Attempt Timeout** (innermost: timeout per individual HTTP request attempt)
+
+> [!WARNING]
+> **Retry Safety on Non-Idempotent Operations:**
+> Standard retries also handle network failures and selected transient responses. The example disables retries for POST, PATCH, PUT, DELETE, and CONNECT. Enable retries for a mutation only when its actual contract guarantees idempotency or enforces deduplication. A status-code/exception predicate alone does not restrict HTTP methods.
+
+> [!NOTE]
+> `Microsoft.Extensions.Http.Resilience` is published under Microsoft's standard library license. Polly 8.x is published under Apache-2.0 / BSD-3. Licensing revisions announced by maintainers apply only to future major releases after November 2026; transitive consumption via Microsoft packages remains officially supported.
+
+### Idempotency & Concurrency
+- For retryable operations, determine whether the operation is naturally idempotent. If not, require an idempotency key (`Idempotency-Key` header).
+- For concurrent updates, define conflict behavior rather than silently overwriting newer state. Optimistic concurrency commonly maps to `409 Conflict`.
+- Do not add retries blindly to non-idempotent endpoints.
+
+## API anti-patterns
+
+❌ Returning EF entities directly from public endpoints.
+
+❌ A single endpoint that performs validation, business rules, database queries, mapping, and external calls inline.
+
+❌ Unbounded collection endpoints.
+
+❌ Trusting client-supplied role/tenant identifiers for authorization.
+
+❌ Catching `Exception` in every endpoint.
+
+❌ Creating `new HttpClient()` repeatedly for application requests.
+
+❌ Documenting an OpenAPI contract that differs from the actual endpoint behavior.
+
+## API checklist
+
+- Target runtime and package versions are known.
+- Contract and DTOs are intentional.
+- HTTP semantics and status codes are correct.
+- Validation and errors are consistent.
+- Authorization is enforced at the resource boundary.
+- Collections are bounded and deterministically ordered.
+- Retries/idempotency/concurrency are understood.
+- OpenAPI matches implementation and consumer compatibility.
+- Responses do not expose internal or sensitive data.
+- Tests verify externally observable behavior.
