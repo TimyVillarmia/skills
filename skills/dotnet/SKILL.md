@@ -1,15 +1,21 @@
 ---
 name: dotnet
-description: Engineering standards, architectural guidance, and validation workflows for modern .NET and C# development. Make sure to use this skill whenever building, modifying, debugging, reviewing, or architecting .NET/C# code or working with .cs, .csproj, .sln, or .slnx files—even if the user only mentions symptoms or ecosystem tools like ASP.NET Core Minimal APIs, OpenAPI, Native AOT, EF Core (DbContext), zero-downtime migrations, BackgroundService/channels, OpenTelemetry, Testcontainers/WebApplicationFactory, WolverineFx/MassTransit/outbox, multi-tenancy, concurrency, auth/security, performance, or NuGet dependency/license choices.
+description: Engineering standards, architectural guidance, and validation workflows for modern .NET and C# development. Make sure to use this skill whenever building, modifying, debugging, reviewing, or architecting .NET/C# code or working with .cs, .csproj, .sln, or .slnx files—even if the user only mentions symptoms or ecosystem tools like ASP.NET Core Minimal APIs, OpenAPI, Native AOT, EF Core (DbContext), zero-downtime migrations, BackgroundService/channels, OpenTelemetry, Testcontainers/WebApplicationFactory, WolverineFx/MassTransit/outbox, multi-tenancy, concurrency, auth/security, rate limiting (AddRateLimiter), HybridCache, ResiliencePipeline, IOptions/ValidateOnStart, webhooks, performance, or NuGet dependency/license choices.
 license: MIT
 metadata:
   author: Timy
-  version: "1.0"
+  version: "1.1"
 ---
 
 # .NET Engineering
 
 Use this skill as the default engineering guide for modern .NET work. It provides general .NET engineering principles, task classification, reference routing, dependency decisions, and validation. Repository-specific instructions, established conventions, and explicit task requirements take precedence.
+
+## Target version
+
+- Greenfield: default to `net10.0` (LTS) and C# 14.
+- Existing repos: read `<TargetFramework>`/`<LangVersion>` in `.csproj`, `Directory.Build.props`, and `global.json` first. Do not use APIs or syntax newer than the target. Version labels like "(.NET 9+)" in references mark minimum versions.
+- Lifecycle awareness: .NET 8 and .NET 9 reached EOL on November 10, 2026. Respect the repository's existing `<TargetFramework>` for code compatibility, but flag EOL target frameworks when reviewing or planning upgrades.
 
 ## Core principles
 
@@ -53,7 +59,10 @@ Before implementation, determine the smallest set of concerns involved:
 | EF Core, queries, modeling, transactions, migrations | Read `references/efcore.md` when the task touches DbContext, LINQ, persistence, outbox, or schema evolution |
 | Zero-downtime migrations, schema evolution, lock-safe DDL | Read `references/database-migrations.md` when adding, modifying, or removing database columns or indexes in production |
 | Distributed messaging, outbox pattern, WolverineFx, MassTransit, message brokers | Read `references/messaging.md` when publishing/consuming messages across processes, brokers, or outbox tables |
-| Multi-tenancy, tenant isolation, global query filters | Read `references/multi-tenancy.md` when isolating tenant data, resolving tenant contexts, or scoping caches |
+| Multi-tenancy, tenant isolation, global query filters | Read `references/multi-tenancy.md` when isolating tenant data, resolving tenant contexts, or isolating tenant caches |
+| Application configuration, Options pattern, User Secrets, feature flags | Read `references/configuration.md` when binding `IOptions<T>`/`IOptionsSnapshot<T>`/`IOptionsMonitor<T>`, configuring `[OptionsValidator]`/`ValidateOnStart()`, handling env vars/User Secrets, or evaluating `Microsoft.FeatureManagement` |
+| Caching, HybridCache, HTTP Output Caching, cache invalidation | Read `references/caching.md` when caching data or HTTP responses, configuring L1/L2 TTLs, preventing cache stampedes, or evicting by tag |
+| Outbound HTTP resilience, ResiliencePipeline, retries, circuit breakers, timeouts | Read `references/resilience.md` when configuring `AddStandardResilienceHandler`, `AddResiliencePipeline`, retry/backoff policies, timeout budgets, or `Retry-After` handling |
 | Testing, integration tests, Testcontainers, WebApplicationFactory, MTP | Read `references/testing.md` when designing, writing, repairing, or scaffolding tests |
 | Concurrency, thread safety, locks, Parallel.ForEachAsync | Read `references/concurrency.md` when coordinating parallel tasks, async locks, or race conditions |
 | A measured or suspected performance problem | Read `references/performance.md` when performance is a requirement; if the bottleneck is database/EF, also read `references/efcore.md` |
@@ -102,6 +111,9 @@ Never generate these anti-patterns:
 - **`TypedResults` vs `IResult`/`Results`:** Follow the surrounding API's established return style; do not mix both without a reason.
 - **Tenant/Role security:** Client-supplied tenant/role identifiers are not authorization proof: enforce scope server-side at the resource boundary.
 - **Deprecated OpenAPI annotations:** Do not call `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
+- **`IConfiguration` injected into services or handlers:** String keys bypass startup validation and hide missing-config errors until runtime execution. Bind and validate strongly typed `IOptions<T>` with `ValidateOnStart()` instead.
+- **Culture-sensitive parsing or formatting of machine data:** Ambient `CultureInfo.CurrentCulture` corrupts numbers and dates on non-US locales (e.g., `,` vs `.` decimal separators). Pass `CultureInfo.InvariantCulture` (or ISO 8601) for logs, protocols, and persistence.
+- **Buffering large uploads with `IFormFile`:** Buffers entire files above 64 KB to memory or temp disk, risking memory/disk exhaustion DoS. Stream large payloads with `MultipartReader` or offload to presigned URLs.
 
 ## Modern C# and .NET
 
@@ -122,7 +134,7 @@ When designing endpoints or reviewing `MapGroup` examples, read `references/api.
 
 ## Configuration and hosted work
 
-For application configuration, prefer modern .NET configuration and Options patterns rather than scattering ad hoc `IConfiguration` access throughout application code. For required external infrastructure and security configuration (connection strings, secrets, external service endpoints, bounded queue capacities), options validation and fail-fast startup enforcement (`ValidateOnStart()`) are hard requirements. For .NET 8+ or Native AOT targets, prefer compile-time source-generated validation (`[OptionsValidator]`) over reflection-based DataAnnotations. Optional feature flags and internal defaults may omit validation. Read `references/architecture.md` for standard options registration patterns.
+For application configuration, bind strongly typed `IOptions<T>` validated at startup with `[OptionsValidator]` and `ValidateOnStart()` rather than injecting `IConfiguration` into services. Read `references/configuration.md` for source precedence, options lifetimes, User Secrets, and feature flags.
 
 For hosted/background work, account for cancellation, graceful shutdown, service lifetimes and scoped dependencies, exception behavior, retries, and overlap/concurrency requirements. Read `references/hosted-services.md` when designing background workers or pipeline channels. Follow the repository's established hosting pattern rather than introducing infrastructure without a concrete need.
 
@@ -185,6 +197,14 @@ Choose tests by the behavior and boundary being verified:
 
 Do not mock EF Core into behaving like a relational database, and do not use in-memory EF providers for relational verification because in-memory providers do not enforce relational constraints, transactions, or SQL semantics. Test risk and observable behavior. For detailed testing architecture, test framework selection, and Testcontainers setup, read `references/testing.md`.
 
+## .NET Aspire
+
+When a task involves .NET Aspire, use the official Aspire Agent Skill when it is installed and available in the environment. Do not duplicate Aspire-specific workflows, API details, resource configuration guidance, or current Aspire documentation in this skill.
+
+This skill still applies to general .NET engineering decisions around an Aspire codebase: correctness, architecture, dependencies, C#, APIs, persistence, testing, security, and performance. The official Aspire skill owns Aspire-specific workflows and APIs.
+
+If the official Aspire skill is unavailable, follow the repository's existing Aspire conventions and verify version-sensitive behavior against official Aspire documentation rather than relying on remembered APIs.
+
 ## Modern greenfield defaults
 
 These are defaults for genuinely new projects or unconstrained features where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
@@ -193,9 +213,11 @@ These are defaults for genuinely new projects or unconstrained features where th
 - Direct handler/use-case injection for Minimal APIs; in-process mediator only when cross-cutting pipeline behaviors justify the abstraction.
 - A Result/ErrorOr-style result model for expected application failures.
 - Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as `Riok.Mapperly`).
-- Native `MapGroup` static extension methods on `IEndpointRouteBuilder` for modular Minimal API route organization; defer to `fastendpoints` for class-per-endpoint REPR architecture.
+- Native `MapGroup` static extension methods on `IEndpointRouteBuilder` for modular Minimal API route organization.
 - Built-in OpenAPI (`builder.Services.AddOpenApi()`) paired with `Scalar.AspNetCore` for interactive API documentation in development.
-- `Microsoft.Extensions.Http.Resilience` (`AddStandardResilienceHandler()`) for client HTTP resilience.
+- Built-in `AddRateLimiter` for endpoint abuse protection.
+- `Guid.CreateVersion7()` (.NET 9+) for time-ordered database keys.
+- `Microsoft.Extensions.Http.Resilience` (`AddStandardResilienceHandler()`) for client HTTP resilience and `Microsoft.Extensions.Resilience` (`AddResiliencePipeline()`) for non-HTTP resilience.
 - `Microsoft.Extensions.Caching.Hybrid` (`HybridCache`) for high-performance multi-tier caching with stampede protection in .NET 9+.
 - Current `MSTest.Sdk` (resolve version) as the primary test project default (MTP-native, native assertions); xUnit v3 as the supported alternative.
 - Testcontainers for relational database and persistence testing.

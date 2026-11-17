@@ -29,6 +29,8 @@ Model actual domain and database constraints explicitly:
 
 Prefer database-enforced constraints for invariants that must hold regardless of application path.
 
+- **Keys:** Prefer `Guid.CreateVersion7()` (.NET 9+) over `Guid.NewGuid()` (UUIDv4) for client-generated GUID primary keys to preserve sequential B-tree index locality and avoid page-split fragmentation.
+
 ### Value Objects: Complex Types vs Owned Entities vs JSON Columns
 
 Evaluate capabilities against the project's EF Core target version:
@@ -53,6 +55,9 @@ modelBuilder.Entity<Order>()
 1. **Leaking tenant data via `IgnoreQueryFilters()`:** Never invoke parameterless `.IgnoreQueryFilters()` on client-facing queries for multi-tenant entities. In EF Core 10+, bypass only the soft-delete filter selectively via `.IgnoreQueryFilters(["SoftDeleteFilter"])` (on older EF Core versions, re-apply the tenant predicate manually). See `references/multi-tenancy.md` for full tenant isolation enforcement.
 2. **Required navigation elimination (INNER JOIN trap):** If a relationship is configured as required (`IsRequired()` / non-nullable foreign key), EF Core generates an `INNER JOIN`. If the related child entity is soft-deleted or filtered out by a query filter, the `INNER JOIN` matches 0 rows and removes the entire parent entity from query results. To preserve the parent, configure the relationship as optional (`LEFT JOIN`) or account for filter cascades.
 3. **Dynamic parameter resolution:** Ensure the filter references a property on the `DbContext` instance (e.g. `this.CurrentTenantId`), rather than capturing an external scoped service via `Expression.Constant`, which bakes the first tenant into EF's cached model permanently.
+4. **Soft-delete unique index trap:** Global query filters do not filter database unique constraints—soft-deleted rows will still block re-creating a record with the same natural key. Use a filtered unique index matching the active database provider:
+   - **PostgreSQL:** `.HasIndex(u => new { u.TenantId, u.Email }).IsUnique().HasFilter("\"IsDeleted\" = false")`
+   - **SQL Server:** `.HasIndex(u => new { u.TenantId, u.Email }).IsUnique().HasFilter("[IsDeleted] = 0")`
 
 ---
 
@@ -219,6 +224,8 @@ Do not concatenate untrusted input into SQL or identifiers. If dynamic identifie
 ## Interceptors and conversions
 
 Interceptors, value converters, conventions, and save/query hooks are powerful. Use them for cross-cutting persistence behavior that genuinely belongs at the persistence boundary.
+
+- **Audit fields (`SaveChangesInterceptor`):** Populate `CreatedAtUtc`, `UpdatedAtUtc`, and `CreatedBy` automatically in a `SaveChangesInterceptor` (`SavingChanges` / `SavingChangesAsync`). Source timestamps from an injected `TimeProvider` and store them as UTC `DateTimeOffset`.
 
 Avoid hiding significant business behavior inside persistence hooks where control flow becomes difficult to reason about.
 

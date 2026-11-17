@@ -2,6 +2,25 @@
 
 Use this reference whenever code handles authentication, authorization, untrusted input, secrets, sensitive data, network boundaries, serialization, or security-sensitive infrastructure.
 
+## Contents
+
+- [Security principles](#security-principles)
+- [Authentication](#authentication)
+- [Authorization](#authorization)
+- [ASP.NET Core security pipeline](#aspnet-core-security-pipeline)
+- [Input and output](#input-and-output)
+- [Injection](#injection)
+- [SSRF and outbound requests](#ssrf-and-outbound-requests)
+- [Deserialization and files](#deserialization-and-files)
+- [Inbound webhooks](#inbound-webhooks)
+- [Browser security and CORS](#browser-security-and-cors)
+- [Secrets and telemetry](#secrets-and-telemetry)
+- [Rate limiting and abuse](#rate-limiting-and-abuse)
+- [Dependencies](#dependencies)
+- [Security anti-patterns](#security-anti-patterns)
+- [Threat modeling](#threat-modeling)
+- [Security checklist](#security-checklist)
+
 ## Security principles
 
 - Treat external input as untrusted.
@@ -15,10 +34,19 @@ Use this reference whenever code handles authentication, authorization, untruste
 
 Choose authentication from the actual client and deployment model:
 
-- OAuth 2.0 / OpenID Connect for delegated or federated identity.
-- JWT bearer authentication when stateless bearer tokens are actually required.
-- Cookies for browser-oriented session authentication when appropriate.
-- API keys only when their operational/security properties are acceptable.
+- **JWT bearer:** Stateless APIs and machine-to-machine callers.
+- **Cookies (`HttpOnly`, `Secure`, `SameSite`):** Browser-oriented sessions, BFFs, and interactive Blazor apps.
+- **OpenID Connect / OAuth 2.0:** Delegated or federated identity with an external IdP.
+- **ASP.NET Core Identity:** Application-managed user stores (including built-in WebAuthn / passkey support in .NET 10). Never build custom password hashing or credential tables.
+- **API keys:** Only when their operational/security properties are acceptable (hash stored keys like passwords, scope permissions, support rotation).
+
+### Token validation and identity rules
+
+- **Use `JsonWebTokenHandler`:** Prefer `JsonWebTokenHandler` (`Microsoft.IdentityModel.JsonWebTokens`) over legacy `JwtSecurityTokenHandler` for custom token validation.
+- **Keep validation strict:** Never disable `ValidateIssuer`, `ValidateAudience`, `ValidateLifetime`, or `ValidateIssuerSigningKey` in production. Keep a small `TokenValidationParameters.ClockSkew` (e.g., 30–60 seconds rather than `TimeSpan.Zero`) to tolerate minor NTP drift across distributed nodes.
+- **Signing keys:** Prefer an external IdP or asymmetric signing (`RS256`/`ES256` via JWKS) over self-issued `HS256` tokens with a shared symmetric secret across services.
+- **Current user abstraction:** Read claims through a small scoped `ICurrentUser` wrapper over `ClaimsPrincipal` / `IHttpContextAccessor` rather than scattering raw `FindFirst(...)` lookups. Never inject `IConfiguration` into token/auth services; bind validated `IOptions<T>` instead.
+- **Policy-based authorization:** Prefer named policies (`RequireAuthorization("BillingAdmin")`) over scattered `Roles = "..."` magic strings.
 
 Validate tokens using established framework components. Never manually implement JWT parsing/signature validation, key rotation, OAuth/OIDC protocol behavior, password hashing, or cryptography.
 
@@ -161,11 +189,22 @@ Treat uploaded documents, images, archives, and other files as untrusted input. 
 
 Never combine untrusted path fragments with filesystem paths without containment validation.
 
-## Browser security
+## Inbound webhooks
+
+Verify inbound webhook authenticity using the **raw request body bytes** before JSON deserialization—re-serializing a parsed DTO alters whitespace/property ordering and breaks signature verification:
+
+1. Enable buffering or read raw bytes from `HttpContext.Request.Body` before model binding.
+2. Compute `HMACSHA256.HashData(secretBytes, rawBodyBytes)` and decode the caller's hex/base64 signature header into bytes.
+3. Compare with `CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes)` to prevent timing attacks.
+4. Enforce a bounded timestamp tolerance window (e.g., ±5 minutes via `TimeProvider`) and record the unique event ID / nonce in a short-lived deduplication table or cache for replay protection.
+
+## Browser security and CORS
 
 For browser applications, consider CSRF, XSS, CORS, cookie flags, content security policy, and secure transport as part of the threat model.
 
 For cookie authentication, configure `Secure`, `HttpOnly`, and an appropriate `SameSite` policy for the deployment model.
+
+Configure CORS with explicit allowed origins from validated configuration options. Never combine `AllowAnyOrigin()` (or wildcard origins) with `AllowCredentials()`, and never treat CORS as an authentication or authorization mechanism.
 
 ## Secrets and telemetry
 
@@ -175,9 +214,54 @@ Review logs, traces, exceptions, metrics, and telemetry for accidental sensitive
 
 ## Rate limiting and abuse
 
-Rate limiting is useful for endpoints vulnerable to high request volume, authentication abuse, expensive computation, enumeration, or downstream fan-out. Combine it with authentication, authorization, validation, quotas, and resource limits as appropriate.
+Rate limiting is useful for endpoints vulnerable to high request volume, authentication abuse, expensive computation, enumeration, or downstream fan-out. Combine it with authentication, authorization, validation, quotas, and request body size limits (see [File uploads, streaming, and request size limits](api.md#file-uploads-streaming-and-request-size-limits)).
 
-For .NET 10, evaluate the built-in ASP.NET Core rate-limiting facilities before adding another dependency.
+For .NET 10, use the built-in ASP.NET Core `AddRateLimiter` middleware (`Microsoft.AspNetCore.RateLimiting`) partitioned by authenticated tenant/user ID or client IP:
+
+- **Token bucket:** Smooths bursty legitimate traffic while bounding average rate.
+- **Sliding window:** Enforces steady request rates without fixed-window boundary spikes.
+- **Concurrency limiter:** Protects scarce downstream resources (DB connections, PDF/AI workers) by capping simultaneous in-flight requests.
+
+```csharp
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (ctx, ct) =>
+    {
+        if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            ctx.HttpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+        await ctx.HttpContext.Response.WriteAsync("Too many requests.", ct);
+    };
+
+    options.AddPolicy("api-per-user", httpContext =>
+    {
+        var key = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                  ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                  ?? "anonymous";
+        return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 60,
+            TokensPerPeriod = 20,
+            ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+            QueueLimit = 0
+        });
+    });
+});
+
+// Middleware order: resolve ForwardedHeaders (with trusted KnownNetworks/KnownProxies) BEFORE UseRateLimiter
+app.UseForwardedHeaders();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+
+app.MapGroup("/api").RequireRateLimiting("api-per-user");
+```
+
+> [!WARNING]
+> **Reverse-proxy IP trap:** Partitioning by `HttpContext.Connection.RemoteIpAddress` without `app.UseForwardedHeaders()` (configured with explicit `KnownNetworks`/`KnownProxies`) places every user behind the load balancer's IP and causes global self-DoS.
 
 ## Dependencies
 

@@ -63,7 +63,7 @@ Store serialized event payloads alongside domain mutations in the same `SaveChan
 ```csharp
 public sealed class OutboxMessage
 {
-    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid Id { get; init; } = Guid.CreateVersion7();
     public required string Type { get; init; }
     public required string Payload { get; init; }
     public required DateTimeOffset OccurredOnUtc { get; init; }
@@ -81,7 +81,7 @@ internal partial class AppJsonContext : JsonSerializerContext
 // Inside endpoint or handler — single atomic transaction
 public async Task HandleAsync(CreateOrderRequest req, AppDbContext db, TimeProvider timeProvider, CancellationToken ct)
 {
-    var order = new Order { Id = Guid.NewGuid(), CustomerId = req.CustomerId };
+    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId };
     db.Orders.Add(order);
 
     var evt = new OrderCreatedEvent(order.Id);
@@ -224,7 +224,7 @@ public static async Task<Ok<OrderDto>> CreateOrder(
     IDbContextOutbox<AppDbContext> outbox,
     CancellationToken ct)
 {
-    var order = new Order { Id = Guid.NewGuid(), CustomerId = req.CustomerId };
+    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId };
     outbox.DbContext.Orders.Add(order);
 
     // Queues message in the outbox; flushed after DB transaction commits

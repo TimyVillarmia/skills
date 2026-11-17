@@ -115,7 +115,7 @@ Inspect `global.json`, project files and imported properties before choosing com
 | SDK 10+ native MTP / MSTest | `dotnet test --project Tests.csproj --filter "FullyQualifiedName~Tests.Method"` |
 | SDK 10+ native MTP / xUnit v3 | `dotnet test --project Tests.csproj --filter-method "Tests.Method"` |
 
-For an executable MTP bridge in VSTest command mode (older SDKs / MTP 1.x), pass the framework's MTP arguments after `--`; keep dotnet/MSBuild options before it. Native MTP takes those arguments directly. Tree-node filters belong to frameworks that support them, not to MTP generally. Confirm the selected run executed the intended nonzero set of tests; use the installed runner's help or `run-tests` when available.
+For an executable MTP bridge in VSTest command mode (older SDKs / MTP 1.x), pass the framework's MTP arguments after `--`; keep dotnet/MSBuild options before it. Native MTP takes those arguments directly. Tree-node filters belong to frameworks that support them, not to MTP generally. Confirm the selected run executed the intended nonzero set of tests using the installed runner's help.
 
 ## Persistence testing with Testcontainers
 
@@ -304,7 +304,7 @@ public class OrdersApiTests(CustomApiFactory factory) : IClassFixture<CustomApiF
 
 ## Deterministic time testing
 
-Avoid calling `DateTime.UtcNow` directly in business logic because it introduces non-deterministic test behavior. Inject `TimeProvider` instead so that time-dependent logic (deadlines, expirations, schedules) can be deterministically controlled in tests with `FakeTimeProvider`:
+Avoid calling `DateTime.UtcNow` directly in business logic because it introduces non-deterministic test behavior. Inject `TimeProvider` instead so that time-dependent logic (deadlines, expirations, schedules) and `SaveChangesInterceptor` audit fields (`CreatedAtUtc`/`UpdatedAtUtc`) can be deterministically controlled in tests by registering `FakeTimeProvider` in DI:
 
 ```csharp
 // In production service:
@@ -327,6 +327,12 @@ public void Trial_After15Days_IsExpired()
     Assert.IsTrue(service.IsExpired(start));
 }
 ```
+
+---
+
+## Contract testing for API evolution
+
+When backward compatibility with external consumers matters, verify HTTP contracts in CI by diffing the generated `/openapi/v1.json` document against a checked-in baseline or snapshot-testing the OpenAPI JSON output inside `WebApplicationFactory` integration tests.
 
 ---
 

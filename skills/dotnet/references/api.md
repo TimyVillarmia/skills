@@ -11,9 +11,10 @@ Use this reference when a .NET application exposes or consumes HTTP APIs.
 - [ProblemDetails and Error Handling Pipeline](#problemdetails-and-error-handling-pipeline)
 - [API Versioning](#api-versioning)
 - [Validation](#validation)
+- [File uploads, streaming, and request size limits](#file-uploads-streaming-and-request-size-limits)
 - [OpenAPI and Interactive Documentation](#openapi-and-interactive-documentation)
 - [Pagination, filtering, and sorting](#pagination-filtering-and-sorting)
-- [Caching and state](#caching-and-state)
+- [Caching and anti-forgery](#caching-and-anti-forgery)
 - [HTTP Resilience, Idempotency, and Concurrency](#http-resilience-idempotency-and-concurrency)
 - [API anti-patterns](#api-anti-patterns)
 - [API checklist](#api-checklist)
@@ -262,6 +263,21 @@ orders.MapGet("/", GetOrdersV1).MapToApiVersion(1, 0);
 orders.MapGet("/", GetOrdersV2).MapToApiVersion(2, 0);
 ```
 
+### Backward-compatible evolution and deprecation headers
+
+Prefer additive-only DTO changes (new optional properties, new endpoints/versions). Never remove, rename, or repurpose the semantics of an existing field in a released version.
+
+When retiring an endpoint or version, emit both RFC 9745 `Deprecation` and RFC 8594 `Sunset` response headers alongside a `Link` header pointing to migration docs:
+
+```http
+Deprecation: @1798761600
+Sunset: Thu, 31 Dec 2026 23:59:59 GMT
+Link: <https://api.example.com/docs/v2-migration>; rel="sunset"
+```
+
+- `Deprecation` (RFC 9745) uses an HTTP Structured Fields Date (`@` followed by a Unix epoch integer timestamp).
+- `Sunset` (RFC 8594) uses an HTTP IMF-fixdate in GMT (`DateTimeOffset.ToString("r", CultureInfo.InvariantCulture)`).
+
 ---
 
 ## Validation
@@ -280,6 +296,19 @@ app.MapPost("/webhooks/raw", (RawPayload req) => TypedResults.Ok()).DisableValid
 
 Never treat client-side validation as a security control.
 
+## File uploads, streaming, and request size limits
+
+`IFormFile` buffers payloads larger than 64 KB to memory or temp disk, risking memory or disk exhaustion on large uploads.
+
+- **Small files only (`IFormFile`):** Acceptable for small bounded payloads when explicit size limits are enforced.
+- **Large files:** Stream multipart payloads directly via `MultipartReader` (`Microsoft.AspNetCore.WebUtilities`) without buffering the whole file, or offload uploads to object storage using short-lived presigned URLs.
+- **Minimal API antiforgery trap:** In ASP.NET Core 8+, Minimal API endpoints binding `IFormFile` or `IFormFileCollection` automatically enforce antiforgery validation and reject stateless Bearer-token requests with `400 Bad Request` unless `.DisableAntiforgery()` is chained (see [Minimal API Anti-Forgery](#minimal-api-anti-forgery-csrf)).
+- **Co-located request size limits:** Enforce tight bounds at Kestrel, endpoint, and form levels:
+  - Kestrel global limit: `options.Limits.MaxRequestBodySize = 10 * 1024 * 1024;`
+  - Endpoint override: `.WithMetadata(new RequestSizeLimitAttribute(50 * 1024 * 1024))` or `[RequestSizeLimit(...)]`
+  - Multipart form limit: `builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = 10 * 1024 * 1024);`
+- **Untrusted upload hygiene:** Never trust `FileName` (generate storage keys with `Path.GetRandomFileName()`) or `ContentType`. Validate allow-listed extensions and inspect file magic bytes before processing.
+
 ## OpenAPI and Interactive Documentation
 
 Keep generated documentation aligned with actual behavior. Document meaningful descriptions, parameters, request/response schemas, auth requirements, and error responses.
@@ -297,9 +326,11 @@ Keep generated documentation aligned with actual behavior. Document meaningful d
   if (app.Environment.IsDevelopment())
   {
       app.MapOpenApi();
-      app.MapScalarApiReference(); // Accessible at /scalar/v1
+      app.MapScalarApiReference(options => options.WithProxy(null)); // Accessible at /scalar/v1
   }
   ```
+  - **Disable external proxy for internal APIs:** Scalar's "Try It" client routes requests through `proxy.scalar.com` by default; call `.WithProxy(null)` so local URLs and `Authorization` headers never leave the machine.
+  - **Security schemes:** Define Bearer/OAuth2 security schemes in `AddOpenApi(options => options.AddDocumentTransformer(...))` rather than in Scalar options—Scalar picks them up from the generated OpenAPI document automatically.
 
 ## Pagination, filtering, and sorting
 
@@ -314,43 +345,11 @@ For collections:
 
 Offset pagination is simple and often sufficient. Keyset/cursor pagination is worth considering for large or frequently changing datasets.
 
-## Caching and state
+## Caching and anti-forgery
 
-### 1. Application / Data Caching: `HybridCache` (.NET 9+)
-For in-memory and distributed data caching, prefer `Microsoft.Extensions.Caching.Hybrid` over raw `IDistributedCache` or `IMemoryCache`. It delivers a unified L1 (in-process) + L2 (distributed) cache with built-in stampede protection (coalesced concurrent requests):
+For application data caching (`HybridCache`), L1/L2 coherence, and HTTP Output Caching (`UseOutputCache`), see [Caching](caching.md).
 
-```csharp
-builder.Services.AddHybridCache(options =>
-{
-    options.DefaultEntryOptions = new HybridCacheEntryOptions
-    {
-        Expiration = TimeSpan.FromMinutes(5),
-        LocalCacheExpiration = TimeSpan.FromMinutes(1)
-    };
-});
-
-// Consuming in endpoints/handlers:
-public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
-{
-    public async Task<UserResponse?> HandleAsync(Guid id, CancellationToken ct)
-    {
-        return await cache.GetOrCreateAsync(
-            $"user-{id}",
-            async token =>
-            {
-                var user = await db.Users.FindAsync([id], token);
-                return user is null ? null : UserResponse.From(user);
-            },
-            tags: ["users"],
-            cancellationToken: ct);
-    }
-}
-```
-
-### 2. HTTP Output Caching: `app.UseOutputCache()`
-For caching rendered HTTP responses on the server side, prefer Output Caching over legacy `ResponseCaching`. Output Caching supports distributed backends, eviction policies, and route cache tags (`.CacheOutput(p => p.Tag("products"))`).
-
-### 3. Minimal API Anti-Forgery (CSRF)
+### Minimal API Anti-Forgery (CSRF)
 In ASP.NET Core Minimal APIs, anti-forgery is enforced via the native antiforgery middleware:
 
 ```csharp
@@ -366,33 +365,7 @@ app.UseAntiforgery(); // Must be placed between UseAuthentication/UseAuthorizati
 
 ## HTTP Resilience, Idempotency, and Concurrency
 
-### HTTP Client Resilience (`Microsoft.Extensions.Http.Resilience`)
-For outbound HTTP communication, use Microsoft's official `Microsoft.Extensions.Http.Resilience` package:
-
-```csharp
-builder.Services.AddHttpClient<InventoryClient>(client =>
-{
-    client.BaseAddress = new Uri("https://inventory.service.local");
-    client.Timeout = TimeSpan.FromSeconds(15);
-}).AddStandardResilienceHandler(options =>
-{
-    options.Retry.DisableForUnsafeHttpMethods();
-});
-```
-
-The standard resilience handler executes policies in this specific order (outermost to innermost):
-1. **Rate Limiter** (outermost: sheds load immediately before exhausting timeouts or retry budgets)
-2. **Total Request Timeout** (overall call deadline across all attempts)
-3. **Standard Retry** (exponential backoff with jitter on transient failures)
-4. **Circuit Breaker** (fails fast when failure rate exceeds threshold)
-5. **Attempt Timeout** (innermost: timeout per individual HTTP request attempt)
-
-> [!WARNING]
-> **Retry Safety on Non-Idempotent Operations:**
-> Standard retries also handle network failures and selected transient responses. The example disables retries for POST, PATCH, PUT, DELETE, and CONNECT. Enable retries for a mutation only when its actual contract guarantees idempotency or enforces deduplication. A status-code/exception predicate alone does not restrict HTTP methods.
-
-> [!NOTE]
-> `Microsoft.Extensions.Http.Resilience` is published under Microsoft's standard library license. Polly 8.x is published under Apache-2.0 / BSD-3. Licensing revisions announced by maintainers apply only to future major releases after November 2026; transitive consumption via Microsoft packages remains officially supported.
+For outbound HTTP client resilience, non-HTTP `ResiliencePipeline` policies, timeout budgets, and `Retry-After` handling, see [Resilience & Fault Tolerance](resilience.md).
 
 ### Idempotency & Concurrency
 - For retryable operations, determine whether the operation is naturally idempotent. If not, require an idempotency key (`Idempotency-Key` header).

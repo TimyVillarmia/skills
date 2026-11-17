@@ -64,12 +64,7 @@ Avoid serializing data that clients do not need. Keep public DTOs intentional ra
 
 ## Caching
 
-Caching is a consistency and invalidation decision, not merely a performance toggle.
-
-For .NET 9+, prefer **`HybridCache`** (`Microsoft.Extensions.Caching.Hybrid`) for application-level data caching. It provides:
-- Two-tier caching (fast in-process L1 + distributed L2 such as Redis) in a single unified API.
-- Automatic cache stampede protection (concurrent callers await the same factory execution rather than racing).
-- Native cancellation, tag-based eviction, and serialization support.
+Caching is a consistency and invalidation decision, not merely a performance toggle. For `HybridCache` (.NET 9+), L1/L2 coherence, stampede protection, and HTTP Output Caching, see [Caching](caching.md).
 
 Before caching, identify:
 

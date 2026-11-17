@@ -121,6 +121,8 @@ private static Task WriteJsonResponse(HttpContext context, HealthReport report)
 
 ## Data Redaction & Compliance
 
+Never embed PII (emails, names, IP addresses, raw tokens) in span names, metric tags, or unredacted log templates, and never put unbounded high-cardinality IDs in metric tags (`Meter`).
+
 Use `Microsoft.Extensions.Compliance.Redaction` paired with `Microsoft.Extensions.Telemetry` (which provides `builder.Logging.EnableRedaction()`) to ensure credentials, tokens, and PII never reach log aggregators. Note that `ErasingRedactor` replaces values with `string.Empty` (`""`).
 
 To redact data, you must both configure the redactor **and classify the logging parameters**:
@@ -155,3 +157,11 @@ builder.Services.AddRedaction(options =>
     options.SetRedactor<ErasingRedactor>(new DataClassificationSet(DataTaxonomy.SensitiveData));
 });
 ```
+
+---
+
+## Container & Runtime Defaults
+
+- **Non-root and port `8080`:** .NET 8+ official container images run as a non-root user (`APP_UID`) listening on port `8080` by default. Do not revert to `USER root` or privileged port `80` without an explicit requirement.
+- **SDK-native container publishing:** Prefer `dotnet publish /t:PublishContainer` before authoring and maintaining a custom `Dockerfile`.
+- **Probes & graceful shutdown:** Expose `/healthz/live` and `/healthz/ready` as shown in [Health Checks: Liveness vs Readiness](#health-checks-liveness-vs-readiness) above, and configure `HostOptions.ShutdownTimeout` + `stoppingToken` propagation per [Hosted & Background Services](hosted-services.md#graceful-shutdown-configuration).

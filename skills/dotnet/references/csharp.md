@@ -192,11 +192,15 @@ Use `nameof`, target-typed `new`, `var` where the type is obvious, and target-ty
 
 For exact language semantics, use the [C# language reference](https://learn.microsoft.com/dotnet/csharp/language-reference/).
 
-## Strings and formatting
+## Strings, formatting, time, and IDs
 
 Use raw string literals for multi-line strings or strings containing substantial quoting/escaping when they make the content easier to read.
 
 Use interpolated strings for clear formatting. For performance-sensitive formatting paths, consider interpolated string handlers or other specialized APIs only when measurement or an established framework API justifies them.
+
+- **Culture-invariant machine data:** Pass `CultureInfo.InvariantCulture` (or explicit `IFormatProvider`) when parsing or formatting machine-readable numbers, dates, and strings (logs, HTTP headers, persistence, CSV/JSON). Do not rely on ambient `CultureInfo.CurrentCulture`.
+- **Time:** Prefer `DateTimeOffset` (stored in UTC) over `DateTime` for instants/timestamps; use `DateOnly` and `TimeOnly` for calendar dates and wall-clock times; obtain current time via `TimeProvider`.
+- **Identifiers:** Prefer `Guid.CreateVersion7()` (.NET 9+) over `Guid.NewGuid()` when generating time-ordered entity or correlation identifiers.
 
 Do not micro-optimize ordinary string construction without evidence.
 
