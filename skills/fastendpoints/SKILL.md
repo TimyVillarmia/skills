@@ -51,7 +51,7 @@ Features/
 | Authentication, JWT claims binding, policies, permissions, throttling | `references/security.md` | Securing endpoints, permission checks, rate limiting, idempotency |
 | In-process CommandBus, EventBus, JobQueues, Server-Sent Events (SSE) | `references/messaging.md` | Using FastEndpoints messaging, pub/sub events, background queues, SSE |
 | Integration tests, `AppFixture`, `TestClass`, typed HTTP clients | `references/testing.md` | Designing, writing, repairing, or running tests with `FastEndpoints.Testing` |
-| EF Core persistence, general C#, Docker, CI/CD | `dotnet` skill | Database migrations, DbContext queries, solution wiring, general .NET tasks |
+| EF Core persistence, general C#, Docker, CI/CD | Repository conventions | Database migrations, DbContext queries, solution wiring, general .NET tasks |
 
 Load only the reference file needed for the immediate task.
 

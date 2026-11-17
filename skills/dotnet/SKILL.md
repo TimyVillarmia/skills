@@ -61,7 +61,6 @@ Before implementation, determine the smallest set of concerns involved:
 | Reviewing a diff, PR, or completed change | Read `references/review.md` when reviewing rather than implementing |
 | Finding evidence for packages, APIs, or version diffs | Search NuGet, inspect project packages, or use official documentation |
 | .NET Aspire-specific workflow or current Aspire APIs | Use the official Aspire Agent Skill when available |
-| FastEndpoints framework, REPR pattern, or FastEndpoints.Testing | Use the `fastendpoints` skill |
 
 If a task crosses multiple areas, read only the smallest combination of references that covers the affected decisions. Do not load unrelated references merely because they exist.
 
@@ -118,7 +117,6 @@ Always verify version-sensitive APIs and behavior against the repository's actua
 
 For Minimal API applications, organize routing with native `MapGroup` static extension methods on `IEndpointRouteBuilder` (`Microsoft.AspNetCore.Routing`) rather than dumping route registrations into `Program.cs` or inventing reflection-based endpoint interfaces. This pattern is zero-allocation and 100% Native AOT trim-safe.
 
-If the application requires full class-per-endpoint REPR architecture, defer to the `fastendpoints` skill.
 
 When designing endpoints or reviewing `MapGroup` examples, read `references/api.md`. For `.slnx` XML solutions or .NET 10 file-based apps (`dotnet run app.cs` with `#:sdk`/`#:package`), inspect the entry file or `.slnx` before assuming a traditional `.sln`/`.csproj` layout.
 
@@ -187,14 +185,6 @@ Choose tests by the behavior and boundary being verified:
 
 Do not mock EF Core into behaving like a relational database, and do not use in-memory EF providers for relational verification because in-memory providers do not enforce relational constraints, transactions, or SQL semantics. Test risk and observable behavior. For detailed testing architecture, test framework selection, and Testcontainers setup, read `references/testing.md`.
 
-## .NET Aspire
-
-When a task involves .NET Aspire, use the official Aspire Agent Skill when it is installed and available in the environment. Do not duplicate Aspire-specific workflows, API details, resource configuration guidance, or current Aspire documentation in this skill.
-
-This skill still applies to general .NET engineering decisions around an Aspire codebase: correctness, architecture, dependencies, C#, APIs, persistence, testing, security, and performance. The official Aspire skill owns Aspire-specific workflows and APIs.
-
-If the official Aspire skill is unavailable, follow the repository's existing Aspire conventions and verify version-sensitive behavior against official Aspire documentation rather than relying on remembered APIs.
-
 ## Modern greenfield defaults
 
 These are defaults for genuinely new projects or unconstrained features where the repository does not already establish a pattern. They are not universal rules and must not override existing project conventions.
@@ -221,7 +211,7 @@ After changes, validate proportionally to risk using native, standalone CLI comm
    `dotnet format --verify-no-changes`
 2. Build the smallest useful scope first, then the relevant solution when warranted:
    `dotnet build <project-or-sln> -c Debug`
-3. Identify the SDK command mode and test framework before choosing focused-test syntax. Follow `references/testing.md` under **Running focused tests**, or use the `run-tests` skill when available.
+3. Identify the SDK command mode and test framework before choosing focused-test syntax. Follow `references/testing.md` under **Running focused tests**.
    - Dual-configuration verification when relevant: `dotnet test -c Debug` and `dotnet test -c Release`
 4. Verify API contracts, database behavior, migrations, or security behavior when affected.
 5. Review the final diff for unintended changes, unnecessary complexity, and regressions.
@@ -237,4 +227,4 @@ Do not claim a change is verified when the relevant validation was not actually 
 
 Routing reminder: re-check `Classify the task` above and load only the reference needed; do not load unrelated references.
 
-If the task is primarily scaffolding a new solution, project, or complete feature, use the `dotnet-scaffold` skill for the scaffolding workflow and use this skill for general .NET engineering guidance.
+If the task is primarily scaffolding a new solution, project, or complete feature, follow repository conventions and use this skill for general .NET engineering guidance.
