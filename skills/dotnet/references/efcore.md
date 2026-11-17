@@ -29,7 +29,7 @@ Model actual domain and database constraints explicitly:
 
 Prefer database-enforced constraints for invariants that must hold regardless of application path.
 
-- **Keys:** Prefer `Guid.CreateVersion7()` (.NET 9+) over `Guid.NewGuid()` (UUIDv4) for client-generated GUID primary keys to preserve sequential B-tree index locality and avoid page-split fragmentation.
+- **Keys:** Prefer `Guid.CreateVersion7()` (.NET 9+) over `Guid.NewGuid()` (UUIDv4) for client-generated GUID primary keys on standard byte-ordered UUID stores (e.g., PostgreSQL `uuid`) to preserve sequential B-tree index locality and avoid page-split fragmentation; on SQL Server `uniqueidentifier` (which sorts bytes 10–15 first), use EF Core's `ValueGeneratedOnAdd()` sequential generator or `NEWSEQUENTIALID()` instead.
 
 ### Value Objects: Complex Types vs Owned Entities vs JSON Columns
 

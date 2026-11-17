@@ -2,6 +2,15 @@
 
 Use this reference when building multi-tenant SaaS applications, isolating tenant data, resolving tenant context, or preventing cross-tenant data leakage in modern .NET.
 
+## Contents
+
+- [1. Tenant Resolution & Ambient Context](#1-tenant-resolution--ambient-context)
+- [2. Automated EF Core Isolation (Shared Database Model)](#2-automated-ef-core-isolation-shared-database-model)
+- [3. Database-per-Tenant Model (Dedicated Database Isolation)](#3-database-per-tenant-model-dedicated-database-isolation)
+- [4. Multi-Tenant Cache Partitioning](#4-multi-tenant-cache-partitioning)
+- [5. Tenant Propagation in Background Work & Messaging](#5-tenant-propagation-in-background-work--messaging)
+- [6. Multi-Tenancy Review Checklist](#6-multi-tenancy-review-checklist)
+
 ---
 
 ## 1. Tenant Resolution & Ambient Context
@@ -210,15 +219,22 @@ Only platform-level administrative tasks (system-wide metrics, tenant deprovisio
 For enterprise compliance requiring physical data sovereignty, resolve connection strings dynamically per tenant:
 
 ```csharp
-public sealed class TenantConnectionFactory(ITenantContext tenantContext, IConfiguration configuration)
+public sealed class TenantDatabaseOptions
+{
+    public Dictionary<Guid, string> ConnectionStrings { get; init; } = [];
+}
+
+public sealed class TenantConnectionFactory(
+    ITenantContext tenantContext,
+    IOptionsMonitor<TenantDatabaseOptions> options)
 {
     public string GetConnectionString()
     {
         if (!tenantContext.IsResolved)
             throw new InvalidOperationException("Cannot resolve database connection without tenant context.");
 
-        var connectionString = configuration.GetConnectionString($"Tenant_{tenantContext.TenantId}");
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (!options.CurrentValue.ConnectionStrings.TryGetValue(tenantContext.TenantId, out var connectionString) ||
+            string.IsNullOrWhiteSpace(connectionString))
         {
             // Fail-closed: Never silently fall back to a shared default database
             throw new InvalidOperationException(

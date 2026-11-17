@@ -63,7 +63,7 @@ Store serialized event payloads alongside domain mutations in the same `SaveChan
 ```csharp
 public sealed class OutboxMessage
 {
-    public Guid Id { get; init; } = Guid.CreateVersion7();
+    public Guid Id { get; init; } = Guid.CreateVersion7(); // .NET 9+
     public required string Type { get; init; }
     public required string Payload { get; init; }
     public required DateTimeOffset OccurredOnUtc { get; init; }
@@ -97,7 +97,7 @@ public async Task HandleAsync(CreateOrderRequest req, AppDbContext db, TimeProvi
 ```
 
 #### 2. Background Sweeper (`BackgroundService` + `PeriodicTimer`)
-Resolve `AppDbContext` inside a fresh `IServiceScope` per tick. Claim each candidate with an atomic conditional update and a short lease so concurrent service instances do not process the same row. Set the lease longer than expected batch work or renew it for long-running publishes. A crash after broker publication but before the processed update can still cause a retry; consumers must remain idempotent.
+Resolve `AppDbContext` inside a fresh `IServiceScope` per tick. Claim each candidate with an atomic conditional update and a short lease so concurrent service instances do not process the same row. Set the lease longer than expected batch work or renew it for long-running publishes. In production, also track attempt counts with backoff and move poison messages to a dead-letter state after max attempts. A crash after broker publication but before the processed update can still cause a retry; consumers must remain idempotent.
 
 ```csharp
 public sealed class OutboxProcessor(
@@ -161,12 +161,17 @@ public sealed class OutboxProcessor(
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         message.Error = ex.Message;
+                        message.ClaimId = null;
+                        message.ClaimExpiresAtUtc = timeProvider.GetUtcNow().AddSeconds(30); // Backoff before retry
                         logger.LogError(ex, "Failed publishing outbox message {OutboxMessageId}.", message.Id);
                     }
                     finally
                     {
-                        message.ClaimId = null;
-                        message.ClaimExpiresAtUtc = null;
+                        if (message.ProcessedOnUtc is not null)
+                        {
+                            message.ClaimId = null;
+                            message.ClaimExpiresAtUtc = null;
+                        }
                     }
 
                     await db.SaveChangesAsync(stoppingToken);

@@ -22,7 +22,6 @@ Add the new column as **nullable** in the database. Do not touch the old column:
 migrationBuilder.AddColumn<string>(
     name: "DisplayName",
     table: "Users",
-    type: "text",
     nullable: true);
 ```
 
@@ -95,7 +94,7 @@ migrationBuilder.Sql(
 ```
 
 ### SQL Server: Online Index Creation
-In SQL Server Enterprise, always specify `ONLINE = ON`:
+In SQL Server Enterprise, specify `ONLINE = ON` where supported:
 ```csharp
 migrationBuilder.Sql(
     "CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON Orders (CustomerId) WITH (ONLINE = ON);");

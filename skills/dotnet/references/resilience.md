@@ -22,7 +22,6 @@ For outbound HTTP communication, use `Microsoft.Extensions.Http.Resilience` (`Ad
 builder.Services.AddHttpClient<InventoryClient>(client =>
 {
     client.BaseAddress = new Uri("https://inventory.service.local");
-    client.Timeout = TimeSpan.FromSeconds(15);
 }).AddStandardResilienceHandler(options =>
 {
     options.Retry.DisableForUnsafeHttpMethods();
@@ -117,10 +116,11 @@ options.Retry.DelayGenerator = args =>
     var delay = retryAfter?.Delta
         ?? (retryAfter?.Date is DateTimeOffset date ? date - TimeProvider.System.GetUtcNow() : (TimeSpan?)null);
 
-    if (delay is > TimeSpan.Zero)
+    if (delay is { } d && d > TimeSpan.Zero)
     {
+        // Clamp within caller SLA budget (or fail fast in ShouldHandle when Retry-After exceeds budget)
         var maxDelay = TimeSpan.FromSeconds(15);
-        return ValueTask.FromResult<TimeSpan?>(delay.Value > maxDelay ? maxDelay : delay.Value);
+        return ValueTask.FromResult<TimeSpan?>(d > maxDelay ? maxDelay : d);
     }
 
     return ValueTask.FromResult<TimeSpan?>(null); // Fall back to default exponential backoff + jitter

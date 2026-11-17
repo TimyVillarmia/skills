@@ -43,7 +43,7 @@ builder.Services.AddHybridCache(options =>
 
 ### Stampede protection semantics
 
-When multiple concurrent callers request the same missing key, `HybridCache` executes the factory delegate once and coalesces the remaining callers onto that single in-flight result. Keep factory delegates pure and pass the `CancellationToken` provided to the factory lambda (`token`), not the outer caller's token, so one cancelled request does not abort a shared factory execution for other waiting callers:
+When multiple concurrent callers request the same missing key, `HybridCache` executes the factory delegate once and coalesces the remaining callers onto that single in-flight result. Keep factory delegates side-effect-free and pass the `CancellationToken` provided to the factory lambda (`token`), not the outer caller's token, so one cancelled request does not abort a shared factory execution for other waiting callers:
 
 ```csharp
 public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
@@ -66,6 +66,8 @@ public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
     }
 }
 ```
+
+If an initiating HTTP request cancels while coalesced callers still await the shared factory, its request scope can end early. Use `IDbContextFactory<AppDbContext>` or `IServiceScopeFactory` inside the factory when coalesced database queries must survive individual caller cancellation.
 
 Use `HybridCacheEntryFlags` on `HybridCacheEntryOptions.Flags` when a call needs to bypass or restrict a tier (for example, `HybridCacheEntryFlags.DisableLocalCacheRead` for strict L2 reads, or `DisableDistributedCache` for L1-only entries).
 

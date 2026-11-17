@@ -88,14 +88,14 @@ For repositories with established xUnit conventions, or teams that prefer constr
     <!-- Use repository target framework; default to active LTS net10.0 for greenfield -->
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Resolve compatible package versions dynamically in Directory.Packages.props under CPM -->
-    <PackageReference Include="xunit.v3" />
-    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="xunit.v3.mtp-v2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Respawn" />

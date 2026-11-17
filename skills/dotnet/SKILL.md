@@ -4,7 +4,7 @@ description: Engineering standards, architectural guidance, and validation workf
 license: MIT
 metadata:
   author: Timy
-  version: "1.1"
+  version: "1.1.1"
 ---
 
 # .NET Engineering
@@ -127,7 +127,7 @@ Always verify version-sensitive APIs and behavior against the repository's actua
 
 ## API and application structure
 
-For Minimal API applications, organize routing with native `MapGroup` static extension methods on `IEndpointRouteBuilder` (`Microsoft.AspNetCore.Routing`) rather than dumping route registrations into `Program.cs` or inventing reflection-based endpoint interfaces. This pattern is zero-allocation and 100% Native AOT trim-safe.
+For Minimal API applications, organize routing with native `MapGroup` static extension methods on `IEndpointRouteBuilder` (`Microsoft.AspNetCore.Routing`) rather than dumping route registrations into `Program.cs` or inventing reflection-based endpoint interfaces. This pattern avoids reflection scanning and is Native AOT-friendly.
 
 
 When designing endpoints or reviewing `MapGroup` examples, read `references/api.md`. For `.slnx` XML solutions or .NET 10 file-based apps (`dotnet run app.cs` with `#:sdk`/`#:package`), inspect the entry file or `.slnx` before assuming a traditional `.sln`/`.csproj` layout.

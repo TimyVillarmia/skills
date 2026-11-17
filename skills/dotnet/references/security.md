@@ -257,7 +257,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapGroup("/api").RequireRateLimiting("api-per-user");
+var api = app.MapGroup("/api").RequireRateLimiting("api-per-user");
+api.MapGet("/orders", GetOrders);
 ```
 
 > [!WARNING]

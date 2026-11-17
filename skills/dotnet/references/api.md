@@ -110,7 +110,7 @@ In `Program.cs`:
 app.MapUserEndpoints();
 ```
 
-This pattern is 100% Native AOT trim-safe, requires no reflection scanning or custom interfaces, and cascades authorization, filters, and OpenAPI metadata across the group.
+This pattern avoids reflection scanning, is Native AOT-friendly, and cascades authorization, filters, and OpenAPI metadata across the group.
 
 ## HTTP semantics
 
@@ -176,15 +176,15 @@ public sealed class GlobalExceptionHandler(
 
         var statusCode = exception switch
         {
-            BadHttpRequestException => StatusCodes.Status400BadRequest,
+            BadHttpRequestException badRequest => badRequest.StatusCode,
             _ => StatusCodes.Status500InternalServerError
         };
 
         var problemDetails = new ProblemDetails
         {
             Status = statusCode,
-            Title = statusCode == StatusCodes.Status400BadRequest
-                ? "Bad Request"
+            Title = ReasonPhrases.GetReasonPhrase(statusCode) is { Length: > 0 } phrase
+                ? phrase
                 : "Internal Server Error",
             Detail = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
                 ? exception.ToString()
@@ -270,7 +270,7 @@ Prefer additive-only DTO changes (new optional properties, new endpoints/version
 When retiring an endpoint or version, emit both RFC 9745 `Deprecation` and RFC 8594 `Sunset` response headers alongside a `Link` header pointing to migration docs:
 
 ```http
-Deprecation: @1798761600
+Deprecation: @1780272000
 Sunset: Thu, 31 Dec 2026 23:59:59 GMT
 Link: <https://api.example.com/docs/v2-migration>; rel="sunset"
 ```
@@ -326,10 +326,10 @@ Keep generated documentation aligned with actual behavior. Document meaningful d
   if (app.Environment.IsDevelopment())
   {
       app.MapOpenApi();
-      app.MapScalarApiReference(options => options.WithProxy(null)); // Accessible at /scalar/v1
+      app.MapScalarApiReference(options => options.ProxyUrl = null); // Accessible at /scalar/v1
   }
   ```
-  - **Disable external proxy for internal APIs:** Scalar's "Try It" client routes requests through `proxy.scalar.com` by default; call `.WithProxy(null)` so local URLs and `Authorization` headers never leave the machine.
+  - **Disable external proxy for internal APIs:** Scalar's "Try It" client routes requests through `proxy.scalar.com` by default; set `options.ProxyUrl = null` so local URLs and `Authorization` headers never leave the machine.
   - **Security schemes:** Define Bearer/OAuth2 security schemes in `AddOpenApi(options => options.AddDocumentTransformer(...))` rather than in Scalar options—Scalar picks them up from the generated OpenAPI document automatically.
 
 ## Pagination, filtering, and sorting

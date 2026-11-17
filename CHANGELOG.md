@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.1] - 2026-11-17
+
+### Fixed
+- `resilience.md`: Fixed `CS0150` compile error in `Retry-After` delay pattern, removed conflicting `HttpClient.Timeout` so `AddStandardResilienceHandler` owns the timeout budget, and noted `ShouldHandle` fail-fast when `Retry-After` exceeds the caller SLA.
+- `security.md`: Captured `MapGroup("/api").RequireRateLimiting(...)` and mapped an endpoint onto the group so the rate limit applies.
+- `testing.md`: Added `UseMicrosoftTestingPlatformRunner` and `xunit.v3.mtp-v2` to the xUnit v3 project snippet to match the native MTP CLI examples.
+- `api.md`: Preserved `BadHttpRequestException.StatusCode` in `GlobalExceptionHandler` (avoiding `413` to `400` rewrites), set `Deprecation` timestamp before `Sunset`, replaced `options.WithProxy(null)` (`CS8625`) with `options.ProxyUrl = null`, and qualified `MapGroup` AOT wording.
+- `observability.md`: Removed high-cardinality `customer.id` tag from `OrdersCreatedCounter.Add(1)`.
+- `multi-tenancy.md`: Replaced `IConfiguration` injection in `TenantConnectionFactory` with `IOptionsMonitor<TenantDatabaseOptions>` and added `## Contents` TOC.
+- `messaging.md`: Added `.NET 9+` label on `Guid.CreateVersion7()`, retry-cap note, and 30-second backoff lease on failed outbox publish.
+- `efcore.md`, `caching.md`, `hosted-services.md`, `database-migrations.md`, `csharp.md`, `SKILL.md`: Qualified SQL Server `uniqueidentifier` vs UUIDv7 locality, `HybridCache` scoped `DbContext` lifetime on cancellation, `Channel<T>` volatile scope, provider-neutral `AddColumn<string>`, `ONLINE = ON` support caveat, and `(C# 12+)` section labels.
+
 ## [1.1.0] - 2026-11-17
 
 ### Added

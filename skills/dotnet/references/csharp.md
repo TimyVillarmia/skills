@@ -31,7 +31,7 @@ Do not introduce syntax from a newer C# version into a project that cannot compi
 
 For a project targeting .NET 10, C# 14 is the expected modern language baseline unless the repository explicitly chooses otherwise. Verify the actual project configuration before relying on C# 14-specific behavior.
 
-## Primary constructors
+## Primary constructors (C# 12+)
 
 Use primary constructors when constructor parameters naturally describe the type's required dependencies or state and keeping the declaration compact improves readability.
 
@@ -106,7 +106,7 @@ Do not make every DTO, entity, or domain object a record automatically. Choose s
 
 For language-reference details, use the [C# documentation](https://learn.microsoft.com/dotnet/csharp/).
 
-## Collection expressions
+## Collection expressions (C# 12+)
 
 Use collection expressions (`[...]`) when the target type and surrounding code make the intent clearer and the target supports the required semantics.
 

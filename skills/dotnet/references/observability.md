@@ -46,7 +46,7 @@ public static class OrderTelemetry
     {
         var activity = Source.StartActivity("CreateOrder", ActivityKind.Internal);
         activity?.SetTag("customer.id", customerId);
-        OrdersCreatedCounter.Add(1, new KeyValuePair<string, object?>("customer.id", customerId));
+        OrdersCreatedCounter.Add(1);
         return activity;
     }
 }

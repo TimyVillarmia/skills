@@ -55,7 +55,7 @@ public sealed class OrderProcessingWorker(
 
 ## Producer-Consumer with Bounded Channels
 
-Use `System.Threading.Channels.Channel<T>` to buffer incoming work and enforce backpressure:
+Use `System.Threading.Channels.Channel<T>` to buffer volatile in-process work and enforce backpressure (for durable work that must survive restarts or route to a DLQ, use the outbox/broker patterns in [messaging.md](messaging.md); wrap `processor.ProcessAsync` in a `ResiliencePipeline` when transient retries are needed):
 
 ```csharp
 public sealed class WorkQueue<T>
