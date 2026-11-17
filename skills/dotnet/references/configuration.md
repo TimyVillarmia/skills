@@ -61,7 +61,7 @@ Properties bound via `BindConfiguration(...)` require `public set` or `public in
 
 ### 1. Compile-time `[OptionsValidator]` (Default for .NET 8+ / Native AOT)
 
-Prefer compile-time source-generated validation (`[OptionsValidator]`) over reflection-based `ValidateDataAnnotations()`, which emits `IL2026` trimming warnings under Native AOT:
+Prefer compile-time source-generated validation (`[OptionsValidator]`) over reflection-based `ValidateDataAnnotations()`, which emits `IL2026` trimming warnings under Native AOT. In Native AOT projects, also enable `<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>` in `.csproj` so `BindConfiguration(...)` uses compile-time source generation:
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
@@ -84,11 +84,9 @@ public partial class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions
 }
 
 // Registration in Program.cs:
-builder.Services.AddOptions<DatabaseOptions>()
-    .BindConfiguration(DatabaseOptions.SectionName)
-    .ValidateOnStart();
-
-builder.Services.AddSingleton<IValidateOptions<DatabaseOptions>, DatabaseOptionsValidator>();
+builder.Services
+    .AddOptionsWithValidateOnStart<DatabaseOptions, DatabaseOptionsValidator>()
+    .BindConfiguration(DatabaseOptions.SectionName);
 ```
 
 ### 2. Cross-field or custom validation

@@ -55,7 +55,7 @@ Authentication answers **who is the caller**. Authorization answers **what the c
 ## Authorization
 
 ### Default-Deny Authorization Policy
-Enforce default-deny across the entire API by configuring `FallbackPolicy`. Endpoints that should be public must explicitly declare `.AllowAnonymous()`:
+Enforce default-deny across the entire API by configuring `FallbackPolicy`. Endpoints that should be public (such as `/healthz/live`, `/healthz/ready`, or development OpenAPI/Scalar routes) must explicitly declare `.AllowAnonymous()`:
 
 ```csharp
 builder.Services.AddAuthorization(options =>
@@ -251,18 +251,19 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// Middleware order: resolve ForwardedHeaders (with trusted KnownNetworks/KnownProxies) BEFORE UseRateLimiter
+// Middleware order: resolve ForwardedHeaders (with trusted KnownIPNetworks in .NET 10+ / KnownNetworks in .NET 8-9 and KnownProxies)
+// BEFORE UseRateLimiter, and place UseRateLimiter after UseAuthentication but before UseAuthorization
 app.UseForwardedHeaders();
 app.UseAuthentication();
-app.UseAuthorization();
 app.UseRateLimiter();
+app.UseAuthorization();
 
 var api = app.MapGroup("/api").RequireRateLimiting("api-per-user");
 api.MapGet("/orders", GetOrders);
 ```
 
 > [!WARNING]
-> **Reverse-proxy IP trap:** Partitioning by `HttpContext.Connection.RemoteIpAddress` without `app.UseForwardedHeaders()` (configured with explicit `KnownNetworks`/`KnownProxies`) places every user behind the load balancer's IP and causes global self-DoS.
+> **Reverse-proxy IP trap:** Partitioning by `HttpContext.Connection.RemoteIpAddress` without `app.UseForwardedHeaders()` (configured with explicit `KnownIPNetworks` in .NET 10+ or `KnownNetworks` in .NET 8–9, plus `KnownProxies`) places every user behind the load balancer's IP and causes global self-DoS.
 
 ## Dependencies
 

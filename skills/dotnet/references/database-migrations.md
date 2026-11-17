@@ -29,11 +29,11 @@ migrationBuilder.AddColumn<string>(
 Update the application code to write to both columns and fall back to the old column on read:
 ```csharp
 // Read: Prefer new column, fallback to old
-public string DisplayName => NewDisplayName ?? OldFullName;
+public string EffectiveDisplayName => DisplayName ?? FullName;
 
-// Write: Populate both columns on insert/update
-user.OldFullName = request.DisplayName;
-user.NewDisplayName = request.DisplayName;
+// Write: Populate both mapped columns on insert/update
+user.FullName = request.DisplayName;
+user.DisplayName = request.DisplayName;
 ```
 Run a background batch script to backfill existing historical records (see Section 4).
 
@@ -171,7 +171,6 @@ while (!ct.IsCancellationRequested)
 {
     var count = await db.Users
         .Where(u => u.DisplayName == null && u.FullName != null)
-        .OrderBy(u => u.Id)
         .Take(5000)
         .ExecuteUpdateAsync(s => s.SetProperty(u => u.DisplayName, u => u.FullName), ct);
 

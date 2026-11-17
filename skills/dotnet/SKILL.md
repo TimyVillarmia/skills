@@ -4,7 +4,7 @@ description: Engineering standards, architectural guidance, and validation workf
 license: MIT
 metadata:
   author: Timy
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # .NET Engineering
@@ -213,7 +213,8 @@ These are defaults for genuinely new projects or unconstrained features where th
 - Direct handler/use-case injection for Minimal APIs; in-process mediator only when cross-cutting pipeline behaviors justify the abstraction.
 - A Result/ErrorOr-style result model for expected application failures.
 - Static factory methods (`UserResponse.From(entity)`) and projection expressions (`UserResponse.Project`) on DTOs, or compile-time source-generated mappers (such as `Riok.Mapperly`).
-- Native `MapGroup` static extension methods on `IEndpointRouteBuilder` for modular Minimal API route organization.
+- Native `MapGroup` static extension methods on `IEndpointRouteBuilder` for modular Minimal API route organization, returning `TypedResults` and using `builder.Services.AddValidation()` (.NET 10+) for boundary validation.
+- Strongly typed `IOptions<T>` with `[OptionsValidator]` and `AddOptionsWithValidateOnStart` / `ValidateOnStart()` rather than injecting `IConfiguration`.
 - Built-in OpenAPI (`builder.Services.AddOpenApi()`) paired with `Scalar.AspNetCore` for interactive API documentation in development.
 - Built-in `AddRateLimiter` for endpoint abuse protection.
 - `Guid.CreateVersion7()` (.NET 9+) for time-ordered database keys.

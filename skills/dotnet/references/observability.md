@@ -9,7 +9,7 @@ Use this reference when configuring telemetry, metrics, logging, health probes, 
 | **Distributed Tracing** | Instrument domain boundaries with `ActivitySource("MyCompany.Orders")` and export via OpenTelemetry OTLP | Rely on ambient HTTP headers manually or create un-parented activities | Trace displays in Jaeger/Aspire/OTel collector with connected span hierarchy |
 | **Operational Metrics** | Track throughput, rates, and durations with `Meter` (`Counter<T>`, `Histogram<T>`, `UpDownCounter<T>`) | Parse unstructured text logs to extract operational numbers | Metrics visible on `/metrics` endpoint or exported OTLP collector |
 | **Structured Logging** | Use compile-time `[LoggerMessage]` source generator with named placeholders | Use string interpolation (`$"User {id}"`) or un-templated strings in log calls | Log events emit structured JSON attributes without string allocations |
-| **Health Checks** | Distinguish liveness (`/healthz/live`) from readiness (`/healthz/ready`) using built-in JSON writer | Put deep database queries inside liveness probes (causes restart cascade) | Probes return 200 OK when healthy and 503 Service Unavailable when failing |
+| **Health Checks** | Distinguish liveness (`/healthz/live`) from readiness (`/healthz/ready`) using a coarse JSON writer and `.AllowAnonymous()` | Put deep database queries inside liveness probes (causes restart cascade) | Probes return 200 OK when healthy and 503 Service Unavailable when failing |
 | **Sensitive Data** | Redact PII, tokens, and credentials using `Microsoft.Extensions.Compliance.Redaction` + `Microsoft.Extensions.Telemetry` | Log raw request/response payloads containing passwords or auth headers | Log outputs erase sensitive parameters (`ErasingRedactor` outputs `""`; use `HmacRedactor` or a custom redactor for correlation/tokens) |
 
 ---
@@ -64,9 +64,9 @@ public static partial class LogMessages
     [LoggerMessage(
         EventId = 1001,
         Level = LogLevel.Information,
-        Message = "Order {OrderId} created for customer {CustomerId} with total {TotalAmount:C}")]
+        Message = "Order {OrderId} created for customer {CustomerId} with total {TotalAmount} {Currency}")]
     public static partial void OrderCreated(
-        ILogger logger, Guid orderId, string customerId, decimal totalAmount);
+        ILogger logger, Guid orderId, string customerId, decimal totalAmount, string currency);
 
     [LoggerMessage(
         EventId = 1002,
@@ -93,27 +93,23 @@ app.MapHealthChecks("/healthz/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live"),
     ResponseWriter = WriteJsonResponse
-});
+}).AllowAnonymous();
 
 app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),
     ResponseWriter = WriteJsonResponse
-});
+}).AllowAnonymous();
 ```
 
 ### Coarse Public Health Probe
-Public orchestrator probes (`/healthz/live`, `/healthz/ready`) should emit only the aggregate status. Keep per-check names, descriptions, data, and exception details in protected telemetry; descriptions can contain the same secrets as exception messages.
+Public orchestrator probes (`/healthz/live`, `/healthz/ready`) should emit only the aggregate status (and allow anonymous access so `FallbackPolicy` does not return `401`). Keep per-check names, descriptions, data, and exception details in protected telemetry; descriptions can contain the same secrets as exception messages.
 
 ```csharp
 private static Task WriteJsonResponse(HttpContext context, HealthReport report)
 {
     context.Response.ContentType = "application/json";
-    var response = new
-    {
-        status = report.Status.ToString()
-    };
-    return JsonSerializer.SerializeAsync(context.Response.Body, response);
+    return context.Response.WriteAsync($$"""{"status":"{{report.Status}}"}""");
 }
 ```
 

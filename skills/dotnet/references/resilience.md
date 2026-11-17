@@ -107,24 +107,31 @@ $$\text{TotalRequestTimeout} > \text{AttemptTimeout} \times (\text{MaxRetryAttem
 
 ## Honoring upstream `429` and `Retry-After`
 
-When calling external APIs that return `429 Too Many Requests` or `503 Service Unavailable` with a `Retry-After` header, respect the server's backoff hint—but **clamp** the delay to a bounded ceiling so an upstream returning `Retry-After: 3600` does not pin request threads or exhaust connection pools:
+When calling external APIs that return `429 Too Many Requests` or `503 Service Unavailable` with a `Retry-After` header, respect the server's backoff hint, and decline the retry in `ShouldHandle` when the requested delay exceeds the caller's SLA budget so an upstream `Retry-After: 3600` does not pin request threads or trigger early retries:
 
 ```csharp
-options.Retry.DelayGenerator = args =>
-{
-    var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
-    var delay = retryAfter?.Delta
-        ?? (retryAfter?.Date is DateTimeOffset date ? date - TimeProvider.System.GetUtcNow() : (TimeSpan?)null);
+var maxRetryDelay = TimeSpan.FromSeconds(15);
 
-    if (delay is { } d && d > TimeSpan.Zero)
+// ShouldRetryAfterHeader is true by default in Microsoft.Extensions.Http.Resilience
+// and automatically honors Retry-After delays. Override ShouldHandle only to fail fast
+// when Retry-After exceeds the caller's SLA budget:
+options.Retry.ShouldHandle = args =>
+{
+    if (!HttpClientResiliencePredicates.IsTransient(args.Outcome))
     {
-        // Clamp within caller SLA budget (or fail fast in ShouldHandle when Retry-After exceeds budget)
-        var maxDelay = TimeSpan.FromSeconds(15);
-        return ValueTask.FromResult<TimeSpan?>(d > maxDelay ? maxDelay : d);
+        return ValueTask.FromResult(false);
     }
 
-    return ValueTask.FromResult<TimeSpan?>(null); // Fall back to default exponential backoff + jitter
+    var retryAfter = args.Outcome.Result?.Headers.RetryAfter;
+    var delay = retryAfter?.Delta
+        ?? (retryAfter?.Date is DateTimeOffset date ? date - TimeProvider.System.GetUtcNow() : null);
+
+    // Fail fast instead of waiting longer than our budget
+    return ValueTask.FromResult(delay is null || delay <= maxRetryDelay);
 };
+
+// MUST be called AFTER assigning ShouldHandle so it wraps the custom predicate:
+options.Retry.DisableForUnsafeHttpMethods();
 ```
 
 ---

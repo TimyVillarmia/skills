@@ -11,6 +11,7 @@ Use this reference when designing, writing, repairing, or scaffolding tests in m
 - [Persistence testing with Testcontainers](#persistence-testing-with-testcontainers)
 - [Alternative: xUnit v3 Implementation Pattern](#alternative-xunit-v3-implementation-pattern)
 - [Deterministic time testing](#deterministic-time-testing)
+- [Contract testing for API evolution](#contract-testing-for-api-evolution)
 - [Anti-patterns to reject](#anti-patterns-to-reject)
 
 ## Official references
@@ -217,6 +218,13 @@ public class OrdersApiTests
         _factory = new CustomWebApplicationFactory<Program>(_connectionString);
         _client = _factory.CreateClient();
 
+        // Apply EF Core migrations before initializing Respawn
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
+        }
+
         // Initialize Respawn checkpoint using an opened DbConnection
         await using var connection = new Npgsql.NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
@@ -278,9 +286,14 @@ public class CustomApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:DefaultConnection", _container.GetConnectionString());
     }
 
-    public async ValueTask InitializeAsync() => await _container.StartAsync();
+    public async ValueTask InitializeAsync()
+    {
+        await _container.StartAsync();
+        await using var scope = Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    }
 
-    public new async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
         await _container.DisposeAsync();

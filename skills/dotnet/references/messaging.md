@@ -61,6 +61,7 @@ Use a small explicit outbox implementation when you want zero framework lock-in,
 Store serialized event payloads alongside domain mutations in the same `SaveChangesAsync` call:
 
 ```csharp
+[Index(nameof(ProcessedOnUtc), nameof(ClaimExpiresAtUtc), nameof(OccurredOnUtc))]
 public sealed class OutboxMessage
 {
     public Guid Id { get; init; } = Guid.CreateVersion7(); // .NET 9+
@@ -81,7 +82,7 @@ internal partial class AppJsonContext : JsonSerializerContext
 // Inside endpoint or handler — single atomic transaction
 public async Task HandleAsync(CreateOrderRequest req, AppDbContext db, TimeProvider timeProvider, CancellationToken ct)
 {
-    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId };
+    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId }; // .NET 9+
     db.Orders.Add(order);
 
     var evt = new OrderCreatedEvent(order.Id);
@@ -173,9 +174,9 @@ public sealed class OutboxProcessor(
                             message.ClaimExpiresAtUtc = null;
                         }
                     }
-
-                    await db.SaveChangesAsync(stoppingToken);
                 }
+
+                await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -229,7 +230,7 @@ public static async Task<Ok<OrderDto>> CreateOrder(
     IDbContextOutbox<AppDbContext> outbox,
     CancellationToken ct)
 {
-    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId };
+    var order = new Order { Id = Guid.CreateVersion7(), CustomerId = req.CustomerId }; // .NET 9+
     outbox.DbContext.Orders.Add(order);
 
     // Queues message in the outbox; flushed after DB transaction commits
@@ -328,7 +329,7 @@ public async Task OrderCreated_PublishesAndConsumesEvent()
 
 ## 6. Legacy / Existing Codebases: MassTransit v8.x (Pinned)
 
-> ⚠️ **Commercial License Trap (`MassTransit >= 9.0`):** MassTransit v9+ requires a paid commercial license ([MassTransit License Configuration](https://masstransit.massient.com/configuration/license)). Do **not** introduce MassTransit in greenfield projects or upgrade existing projects to `9.x` without explicit commercial license approval. In existing v8 codebases, strictly pin packages to `< 9.0.0` (e.g., `Version="[8.3.*,9.0.0)"` in `Directory.Packages.props`).
+> ⚠️ **Commercial License Trap (`MassTransit >= 9.0`):** MassTransit v9+ requires a paid commercial license ([MassTransit License Configuration](https://masstransit.massient.com/configuration/license)). Do **not** introduce MassTransit in greenfield projects or upgrade existing projects to `9.x` without explicit commercial license approval. In existing v8 codebases, strictly pin packages below `9.0.0` (e.g., `Version="8.3.6"` or `Version="[8.3.0,9.0.0)"` in `Directory.Packages.props`).
 
 When maintaining an existing MassTransit v8 codebase:
 

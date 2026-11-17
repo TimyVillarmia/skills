@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.2] - 2026-11-17
+
+### Fixed
+- `caching.md`: Replaced captured request-scoped `AppDbContext` in `GetUserHandler` with `IDbContextFactory<AppDbContext>` to prevent `ObjectDisposedException` on coalesced `HybridCache` cancellation; switched single-key eviction from `RemoveByTagAsync` to `RemoveAsync`.
+- `testing.md`: Applied `MigrateAsync()` before `Respawner.CreateAsync` and inside `CustomApiFactory.InitializeAsync`, changed `public new async ValueTask DisposeAsync()` to `override`, and added `Contract testing for API evolution` to `## Contents`.
+- `observability.md` & `security.md`: Added `.AllowAnonymous()` to `/healthz/live` and `/healthz/ready` probes, replaced reflection `JsonSerializer.SerializeAsync` in `WriteJsonResponse` with an AOT-safe string write, replaced culture-sensitive `{TotalAmount:C}` in `[LoggerMessage]` with `{TotalAmount} {Currency}`, updated `KnownNetworks` to `KnownIPNetworks` (.NET 10+ / `ASPDEPR005`), and ordered `UseRateLimiter()` before `UseAuthorization()`.
+- `resilience.md`: Called `DisableForUnsafeHttpMethods()` after assigning `ShouldHandle` so custom `Retry-After` checks do not re-enable unsafe HTTP method retries, and removed the redundant `DelayGenerator` block.
+- `messaging.md`: Replaced invalid `Version="[8.3.*,9.0.0)"` with `Version="8.3.6"` / `Version="[8.3.0,9.0.0)"`, moved `SaveChangesAsync` outside the per-message `foreach` loop, and added a composite `[Index]` on `OutboxMessage`.
+- `database-migrations.md`: Aligned Phase 2 mapped property names (`FullName`, `DisplayName`) with Section 4's `ExecuteUpdateAsync` backfill and removed the $O(N^2)$ `.OrderBy(u => u.Id)` on the batch loop.
+- `concurrency.md`: Executed `pg_try_advisory_xact_lock` on `AppDbContext`'s transaction instead of an isolated connection, and changed `[Timestamp]` properties from `init` to `set`.
+- `multi-tenancy.md`: Documented `UseAuthentication()` -> `TenantResolutionMiddleware` -> `UseAuthorization()` order, guarded `OriginalValue` in `TenantSaveChangesInterceptor`, and noted EF Core 8/9's 1-argument `HasQueryFilter` overload.
+- `api.md`, `configuration.md`, `hosted-services.md`, `SKILL.md`: Injected `IHostEnvironment` in `GlobalExceptionHandler` with 4xx `LogWarning` and `app.UseStatusCodePages()`, clarified `ErrorOr` and `.DisableValidation()` route, noted `<EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>` and `AddOptionsWithValidateOnStart`, passed `TimeProvider` to `PeriodicTimer`, and added `TypedResults`, `AddValidation()`, and `[OptionsValidator]` to `SKILL.md` greenfield defaults.
+
 ## [1.1.1] - 2026-11-17
 
 ### Fixed

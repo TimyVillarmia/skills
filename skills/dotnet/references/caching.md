@@ -46,7 +46,7 @@ builder.Services.AddHybridCache(options =>
 When multiple concurrent callers request the same missing key, `HybridCache` executes the factory delegate once and coalesces the remaining callers onto that single in-flight result. Keep factory delegates side-effect-free and pass the `CancellationToken` provided to the factory lambda (`token`), not the outer caller's token, so one cancelled request does not abort a shared factory execution for other waiting callers:
 
 ```csharp
-public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
+public sealed class GetUserHandler(HybridCache cache, IDbContextFactory<AppDbContext> dbFactory)
 {
     public async Task<UserResponse?> HandleAsync(Guid id, CancellationToken ct)
     {
@@ -54,12 +54,12 @@ public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
             $"user:{id}",
             async token =>
             {
-                var user = await db.Users
+                await using var db = await dbFactory.CreateDbContextAsync(token);
+                return await db.Users
                     .AsNoTracking()
                     .Where(u => u.Id == id)
                     .Select(UserResponse.Project)
                     .FirstOrDefaultAsync(token);
-                return user;
             },
             tags: ["users"],
             cancellationToken: ct);
@@ -67,7 +67,7 @@ public sealed class GetUserHandler(HybridCache cache, AppDbContext db)
 }
 ```
 
-If an initiating HTTP request cancels while coalesced callers still await the shared factory, its request scope can end early. Use `IDbContextFactory<AppDbContext>` or `IServiceScopeFactory` inside the factory when coalesced database queries must survive individual caller cancellation.
+Use `IDbContextFactory<AppDbContext>` or `IServiceScopeFactory` inside the factory so coalesced database queries survive individual caller cancellation when the initiating HTTP request scope ends early.
 
 Use `HybridCacheEntryFlags` on `HybridCacheEntryOptions.Flags` when a call needs to bypass or restrict a tier (for example, `HybridCacheEntryFlags.DisableLocalCacheRead` for strict L2 reads, or `DisableDistributedCache` for L1-only entries).
 
@@ -87,10 +87,12 @@ Use `HybridCacheEntryFlags` on `HybridCacheEntryOptions.Flags` when a call needs
 
 ## Tag-based invalidation and tenant isolation
 
-Associate related entries with tags (`tags: ["users", $"user:{id}"]`) and evict logically on write via `RemoveByTagAsync`:
+Evict a single entry by key via `RemoveAsync`, or associate related entries with group tags (`tags: ["users"]`) and evict logically on write via `RemoveByTagAsync`:
 
 ```csharp
-await cache.RemoveByTagAsync($"user:{id}", ct);
+await cache.RemoveAsync($"user:{id}", ct);
+// Or evict a group tag:
+await cache.RemoveByTagAsync("users", ct);
 ```
 
 - **Tenant-scoped keys:** In multi-tenant applications, always namespace cache keys and tags with `tenant:{tenantId}:` so one tenant never reads or evicts another tenant's cached data. See [Multi-Tenancy & Tenant Isolation](multi-tenancy.md#4-multi-tenant-cache-partitioning) for the full key pattern.

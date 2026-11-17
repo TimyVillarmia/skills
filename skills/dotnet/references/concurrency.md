@@ -111,7 +111,7 @@ To prevent lost updates when multiple users edit the same entity concurrently, c
       public decimal TotalAmount { get; set; }
 
       [Timestamp]
-      public byte[] RowVersion { get; init; } = [];
+      public byte[] RowVersion { get; set; } = []; // C# 12+
   }
   ```
 
@@ -125,7 +125,7 @@ To prevent lost updates when multiple users edit the same entity concurrently, c
 
       // Mapped to Postgres system column 'xmin'
       [Timestamp]
-      public uint Version { get; init; }
+      public uint Version { get; set; }
   }
 
   ```
@@ -160,19 +160,16 @@ catch (DbUpdateConcurrencyException ex)
 When synchronizing across multiple application instances (without introducing an external distributed lock service), use PostgreSQL transaction-scoped advisory locks:
 
 ```csharp
-public sealed class DistributedTaskCoordinator(NpgsqlDataSource dataSource)
+public sealed class DistributedTaskCoordinator(AppDbContext db)
 {
     public async Task<bool> TryExecuteExclusiveAsync(long lockId, Func<CancellationToken, Task> task, CancellationToken ct)
     {
-        await using var connection = await dataSource.OpenConnectionAsync(ct);
-        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
 
-        // Lock automatically releases when the transaction commits or rolls back
-        await using var command = new NpgsqlCommand(
-            "SELECT pg_try_advisory_xact_lock(@lockId)", connection, transaction);
-        command.Parameters.AddWithValue("lockId", lockId);
-
-        var acquired = (bool)(await command.ExecuteScalarAsync(ct) ?? false);
+        // Lock shares the DbContext connection and releases automatically on commit/rollback
+        var acquired = await db.Database
+            .SqlQuery<bool>($"SELECT pg_try_advisory_xact_lock({lockId}) AS \"Value\"")
+            .SingleAsync(ct);
         if (!acquired)
         {
             return false; // Another node is currently executing this task

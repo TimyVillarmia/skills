@@ -2,6 +2,8 @@
 
 Use this reference when building multi-tenant SaaS applications, isolating tenant data, resolving tenant context, or preventing cross-tenant data leakage in modern .NET.
 
+For most applications, a custom scoped `ITenantContext` + EF Core query filters is simplest and avoids lock-in; consider `Finbuckle.MultiTenant` only when you need per-tenant authentication/OIDC schemes, per-tenant `IOptions<T>` overrides, or multi-strategy resolution out of the box.
+
 ## Contents
 
 - [1. Tenant Resolution & Ambient Context](#1-tenant-resolution--ambient-context)
@@ -73,6 +75,11 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
         await next(context);
     }
 }
+
+// Middleware order: UseAuthentication() must populate HttpContext.User before TenantResolutionMiddleware runs
+// app.UseAuthentication();
+// app.UseMiddleware<TenantResolutionMiddleware>();
+// app.UseAuthorization();
 ```
 
 ---
@@ -122,7 +129,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
                 var entity = modelBuilder.Entity(entityType.ClrType);
                 // Include the original tenant in tracked UPDATE/DELETE predicates.
                 entity.Property<Guid>(nameof(ITenantEntity.TenantId)).IsConcurrencyToken();
-                // Named filter (EF Core 10+) avoids overwriting soft-delete filters: e => e.TenantId == this.CurrentTenantId
+                // Named filter (EF Core 10+) avoids overwriting soft-delete filters;
+                // on EF Core 8/9, use entity.HasQueryFilter(CreateTenantFilter(entityType.ClrType));
                 entity.HasQueryFilter("TenantFilter", CreateTenantFilter(entityType.ClrType));
             }
         }
@@ -190,12 +198,13 @@ public sealed class TenantSaveChangesInterceptor(ITenantContext tenantContext) :
             }
             else if (entry.State is EntityState.Modified or EntityState.Deleted)
             {
-                if (entry.Entity.TenantId != tenantContext.TenantId)
+                var tenantProperty = entry.Property(x => x.TenantId);
+                if (entry.Entity.TenantId != tenantContext.TenantId ||
+                    (tenantProperty.IsModified && tenantProperty.OriginalValue != tenantContext.TenantId))
                 {
                     throw new InvalidOperationException("Tenant ownership cannot be changed.");
                 }
 
-                var tenantProperty = entry.Property(x => x.TenantId);
                 tenantProperty.OriginalValue = tenantContext.TenantId;
                 tenantProperty.IsModified = false;
             }
@@ -221,7 +230,7 @@ For enterprise compliance requiring physical data sovereignty, resolve connectio
 ```csharp
 public sealed class TenantDatabaseOptions
 {
-    public Dictionary<Guid, string> ConnectionStrings { get; init; } = [];
+    public Dictionary<Guid, string> ConnectionStrings { get; init; } = []; // C# 12+
 }
 
 public sealed class TenantConnectionFactory(

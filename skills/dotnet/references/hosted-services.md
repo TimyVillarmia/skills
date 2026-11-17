@@ -21,11 +21,12 @@ Use this reference when building background workers, scheduled jobs, queue proce
 ```csharp
 public sealed class OrderProcessingWorker(
     IServiceScopeFactory scopeFactory,
+    TimeProvider timeProvider,
     ILogger<OrderProcessingWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10), timeProvider);
 
         while (!stoppingToken.IsCancellationRequested &&
                await timer.WaitForNextTickAsync(stoppingToken))
@@ -76,6 +77,8 @@ public sealed class WorkQueue<T>
 ```
 
 ### Channel Consumer Worker
+
+This consumer is best-effort and discards failed items after logging; wrap processing in a `ResiliencePipeline` or use a durable queue if failed items must be retried.
 
 ```csharp
 public sealed class QueueProcessorWorker(

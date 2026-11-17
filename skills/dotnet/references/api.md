@@ -159,12 +159,14 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 app.UseExceptionHandler(); // Invokes registered IExceptionHandler chain
+app.UseStatusCodePages(); // Emits ProblemDetails for non-exception 4xx/5xx status codes
 ```
 
 #### Exception Handler Implementation:
 ```csharp
 public sealed class GlobalExceptionHandler(
     IProblemDetailsService problemDetailsService,
+    IHostEnvironment environment,
     ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
@@ -172,21 +174,28 @@ public sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        logger.LogError(exception, "Unhandled exception occurred: {Message}", exception.Message);
-
         var statusCode = exception switch
         {
             BadHttpRequestException badRequest => badRequest.StatusCode,
             _ => StatusCodes.Status500InternalServerError
         };
 
+        if (statusCode >= 500)
+        {
+            logger.LogError(exception, "Unhandled exception occurred: {Message}", exception.Message);
+        }
+        else
+        {
+            logger.LogWarning(exception, "Request failed with status {StatusCode}: {Message}", statusCode, exception.Message);
+        }
+
         var problemDetails = new ProblemDetails
         {
             Status = statusCode,
-            Title = ReasonPhrases.GetReasonPhrase(statusCode) is { Length: > 0 } phrase
+            Title = Microsoft.AspNetCore.WebUtilities.ReasonPhrases.GetReasonPhrase(statusCode) is { Length: > 0 } phrase
                 ? phrase
                 : "Internal Server Error",
-            Detail = httpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment()
+            Detail = environment.IsDevelopment()
                 ? exception.ToString()
                 : "An unexpected error occurred."
         };
@@ -203,7 +212,7 @@ public sealed class GlobalExceptionHandler(
 ```
 
 ### Result-to-HTTP Status Code Mapping
-If the application uses a Result/ErrorOr-style model, translate expected domain failures at the endpoint boundary into explicit typed HTTP results:
+If the application uses a Result/ErrorOr-style model (such as `ErrorOr`), translate expected domain failures at the endpoint boundary into explicit typed HTTP results:
 
 ```csharp
 return result.MatchFirst<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHttpResult>>(
@@ -291,7 +300,7 @@ For .NET 10, enable built-in Minimal API source-generated DataAnnotations valida
 ```csharp
 builder.Services.AddValidation();
 app.MapPost("/products", (CreateProductRequest req) => TypedResults.Ok(req));
-app.MapPost("/webhooks/raw", (RawPayload req) => TypedResults.Ok()).DisableValidation();
+app.MapPost("/imports/raw", (RawPayload req) => TypedResults.Ok()).DisableValidation();
 ```
 
 Never treat client-side validation as a security control.
