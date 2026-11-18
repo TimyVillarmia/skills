@@ -63,6 +63,8 @@ Read only the smallest combination of references covering the task:
 
 Prefer capabilities in this order: **Framework/BCL** -> **Existing repo dependency** -> **Small explicit implementation** (non-sensitive code) -> **New dependency** (only with user approval, or stop and report if headless; always prefer established primitives for crypto/auth).
 
+- **Version resolution & audit hygiene:** Resolve new package versions via `dotnet add package <Pkg>` or `dotnet package search <Pkg> --exact-match` rather than guessing versions from memory. If `NU1902`/`NU1903` audit warnings appear, update to the latest compatible patch; if no upstream fix exists, ask the user before suppressing `NU19xx`.
+
 Do not add or upgrade these commercialized packages without explicit license approval:
 
 | Package | Threshold | Action / Permissive Alternative |
@@ -75,14 +77,15 @@ Do not add or upgrade these commercialized packages without explicit license app
 
 ## Modern greenfield defaults
 
-Apply only when starting new projects or unconstrained features:
+Apply only when starting new projects or unconstrained features (if a major choice like database engine, auth/IdP, or messaging is genuinely unspecified, state the recommended default + 1-line rationale and ask if any constraint overrides it):
+- Solution & build: `.slnx`, `Directory.Build.props` (`Nullable=enable`, `ImplicitUsings=enable`, `TreatWarningsAsErrors=true`, `AnalysisLevel=latest-recommended`), and Central Package Management (`Directory.Packages.props` with `ManagePackageVersionsCentrally=true`) for multi-project solutions.
 - Vertical slices with direct handler injection, `TypedResults`, and a `Result`/`ErrorOr` model for expected failures.
 - Static `MapGroup` extensions on `IEndpointRouteBuilder` (avoids reflection scanning; Native AOT-friendly).
 - `AddValidation()` + `[OptionsValidator]` / `ValidateOnStart()`.
 - `AddOpenApi()` + `Scalar.AspNetCore` (`ProxyUrl = null` in Development).
 - `AddRateLimiter`, `Microsoft.Extensions.Http.Resilience`, `Microsoft.Extensions.Resilience`, and `HybridCache` (.NET 9+).
-- `Guid.CreateVersion7()` (.NET 9+) for time-ordered keys (PostgreSQL/MySQL/SQLite; see `references/efcore.md` for SQL Server).
-- `MSTest.Sdk` on Microsoft.Testing.Platform + `Testcontainers`.
+- PostgreSQL 18 (when a relational DB is needed and unspecified) + `Guid.CreateVersion7()` (.NET 9+) for time-ordered keys (PostgreSQL/MySQL/SQLite; see `references/efcore.md` for SQL Server).
+- `MSTest.Sdk` on Microsoft.Testing.Platform (`global.json` with `"test": { "runner": "Microsoft.Testing.Platform" }`) + `Testcontainers`.
 
 ## Validation
 
