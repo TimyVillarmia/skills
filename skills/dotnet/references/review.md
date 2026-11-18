@@ -53,7 +53,9 @@ Check HTTP semantics, contracts, validation, authorization, information disclosu
 
 ## Security review
 
-Check authentication, authorization, input handling, injection, SSRF, deserialization, file handling, secrets, sensitive logging, transport security, rate limiting, and tenant isolation where relevant.
+Check authentication, authorization, input handling, injection (`FromSqlRaw` interpolation), SSRF, deserialization (`BinaryFormatter`), weak crypto (`MD5`/`SHA1`), file handling, secrets, sensitive logging, transport security, wildcard CORS with credentials, rate limiting, endpoints missing explicit auth/`AllowAnonymous` intent, and tenant isolation where relevant.
+
+Run `dotnet package list --vulnerable --include-transitive` when reviewing dependencies. Skip or mark `INFO` for test-fixture and `appsettings.Development.json` dev-only values rather than inflating them to High/Critical, and note that static review does not replace runtime or penetration testing.
 
 Reject hand-rolled security primitives when established implementations are available.
 
@@ -80,6 +82,8 @@ Prefer evidence from profiling, tracing, metrics, query plans, or representative
 When the target version supports newer capabilities, check whether the implementation is unnecessarily using obsolete or error-prone patterns. Examples include repeated `new HttpClient()`, blocking async, manual time abstractions where `TimeProvider` is clearly needed, custom resilience plumbing where supported framework infrastructure fits, or unnecessarily complex language constructs.
 
 Do not require a newer syntax/API merely because it exists. A stable older construct can be correct and clearer in context.
+
+When auditing or upgrading NuGet dependencies, run `dotnet package list --outdated` (updating `Directory.Packages.props` when CPM is enabled) and apply major-version upgrades one package at a time, building and testing between each.
 
 ### ASP.NET Core 10 Upgrade & Breaking Changes
 
