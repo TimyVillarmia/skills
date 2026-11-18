@@ -180,6 +180,7 @@ Do not silently retry or overwrite conflicting state without understanding the b
 
 ## Migrations & Compiled Models
 
+- **CLI-only generation:** Always create, remove, and regenerate migrations and compiled models via the EF Core CLI (`dotnet ef migrations add`, `dotnet ef migrations remove`, `dotnet ef dbcontext optimize`). Never hand-write or manually edit `*ModelSnapshot.cs`, `*.Designer.cs`, or compiled model files; the only valid manual edit to generated output is adding `migrationBuilder.Sql(...)` / `suppressTransaction: true` inside a generated migration's `Up`/`Down` for lock-safe DDL or data scripts.
 - **Migrations:** Never apply `Database.Migrate()` at startup across multi-instance deployments; use idempotent SQL scripts or migration bundles. See [Zero-Downtime Database Migrations](database-migrations.md) for Expand/Contract, lock-safe DDL, and chunked backfills.
 - **Compiled models:** For large `DbContext` models, sub-second container cold starts, or Native AOT targets, generate compiled models via `dotnet ef dbcontext optimize`.
 
@@ -228,6 +229,8 @@ Prefer focused integration tests for mappings/constraints, important queries, tr
 ❌ Explicit transactions around every operation without a transactional requirement.
 
 ❌ `ExecuteUpdate`/`ExecuteDelete` without considering tracking, auditing, domain events, or concurrency implications.
+
+❌ Hand-writing or manually editing EF Core generated files (`*ModelSnapshot.cs`, `*.Designer.cs`, or compiled models) instead of using `dotnet ef` CLI commands.
 
 ## Performance checklist
 

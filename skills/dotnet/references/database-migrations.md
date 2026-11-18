@@ -104,6 +104,9 @@ migrationBuilder.Sql(
 
 ## 3. Production Migration Deployment
 
+> [!IMPORTANT]
+> **CLI-generated migrations only:** Always generate and remove migrations with `dotnet ef migrations add` / `dotnet ef migrations remove`—never hand-write `*ModelSnapshot.cs` or `*.Designer.cs`. Only edit `Up`/`Down` in a generated migration when adding `migrationBuilder.Sql(...)` or `suppressTransaction: true`.
+
 ❌ **Antipattern:** Never call `context.Database.Migrate()` or `Database.EnsureCreated()` in application startup code (`Program.cs`). Multi-pod deployments cause startup races, deadlocks, and require application containers to hold high-privilege DDL credentials.
 
 ### Recommended Approaches
