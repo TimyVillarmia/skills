@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.0] - 2026-11-18
+
+### Added
+- `scripts/validate_skills.py`, `.github/workflows/validate.yml`, and `mise.toml`: Automated skill validation for frontmatter, line/token budgets, anchor links, and formatting across all skills.
+- `SKILL.md`: Greenfield defaults for `.slnx`, `Directory.Build.props` (`TreatWarningsAsErrors`, `AnalysisLevel=latest-recommended`), Central Package Management (`Directory.Packages.props`), PostgreSQL 18, `global.json` (Microsoft.Testing.Platform), NuGet version resolution / `NU19xx` audit hygiene, and "default + 1-line why + ask" guidance.
+- `efcore.md` & `database-migrations.md`: Guardrail requiring `dotnet ef` CLI commands for migrations and compiled models instead of hand-editing generated files (`*ModelSnapshot.cs`, `*.Designer.cs`).
+- `review.md`: Concrete static security checks (`dotnet package list --vulnerable --include-transitive`, `FromSqlRaw` interpolation, `BinaryFormatter`/weak hashes, wildcard CORS, unmarked endpoints), dev-fixture noise filtering, and one-at-a-time major NuGet upgrade guidance (`dotnet package list --outdated`).
+
+### Changed
+- `dotnet` skill (v1.2): Pruned `SKILL.md` to ~101 lines with a `DO NOT USE FOR` Aspire boundary, deduplicated overlapping prose across references, and added `## Contents` TOCs to long references.
+
 ## [1.1.2] - 2026-11-17
 
 ### Fixed
