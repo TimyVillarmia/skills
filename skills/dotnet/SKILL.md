@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Use when building, modifying, debugging, or reviewing .NET 10 / C# 14 backend code or .cs, .csproj, .sln, and .slnx files—including Minimal APIs, OpenAPI, Native AOT, EF Core, zero-downtime migrations, BackgroundService/channels, OpenTelemetry, Testcontainers/WebApplicationFactory, WolverineFx/MassTransit/outbox, multi-tenancy, concurrency, auth/security, rate limiting (AddRateLimiter), HybridCache, ResiliencePipeline, IOptions/ValidateOnStart, webhooks, performance, or NuGet license choices. DO NOT USE FOR: Aspire AppHost/CLI orchestration (use the official Aspire skill when available).
+description: "Use when building, modifying, debugging, or reviewing .NET 10 / C# 14 backend code or .cs, .csproj, .sln, and .slnx files—including Minimal APIs, OpenAPI, Native AOT, EF Core, zero-downtime migrations, BackgroundService/channels, OpenTelemetry, Testcontainers/WebApplicationFactory, WolverineFx/MassTransit/outbox, multi-tenancy, concurrency, auth/security, rate limiting (AddRateLimiter), HybridCache, ResiliencePipeline, IOptions/ValidateOnStart, webhooks, performance, or NuGet license choices. DO NOT USE FOR: Aspire AppHost/CLI orchestration (use the official Aspire skill when available)."
 license: MIT
 metadata:
   author: Timy
