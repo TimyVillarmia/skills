@@ -39,7 +39,7 @@ Evaluate capabilities against the project's EF Core target version:
 |---|---|---|---|
 | **Complex Types (`[ComplexType]`)** | Value objects without independent identity (e.g. `Address`, `Money`) mapped to owner table columns | **EF Core 8+**: Introduced for flat, required value types.<br>**EF Core 9**: Added `GroupBy` and primitive collection support.<br>**EF Core 10+**: Added optional (nullable) complex properties and complex type collections. | Eliminates synthetic shadow keys and table splitting. In EF Core 8 and 9, complex types cannot be null and collections of complex types are not supported. |
 | **Owned Entities (`[Owned]` / `OwnsOne` / `OwnsMany`)** | Dependent concepts requiring collections (`OwnsMany`) or table splitting when targeting older EF versions | **EF Core 2.0+** | Tracked as entities with synthetic shadow keys (e.g. `OwnerId`, `Id`); can generate unexpected table-splitting queries or tracking overhead. |
-| **JSON Columns (`ToJson()`)** | Semi-structured document payloads, nested metadata, or variable aggregates | **EF Core 7+** (enhanced query translation and indexing across EF 8, 9, 10) | Stores payload in a single native JSON column. Queryable via LINQ, but schema migrations require deliberate versioning. |
+| **JSON Columns (`ToJson()`)** | Semi-structured document payloads, nested metadata, or variable aggregates | **EF Core 7+** (`OwnsOne().ToJson()`); **EF Core 10+** (`ComplexProperty().ToJson()`, avoids synthetic shadow keys) | Stores payload in a single native JSON column. Queryable via LINQ, but schema migrations require deliberate versioning. |
 
 ### Global Query Filters (Multi-Tenancy & Soft Delete)
 
@@ -146,7 +146,17 @@ EF Core's `SaveChanges` transaction behavior is often sufficient for a single sa
 
 Do not wrap every operation in an explicit transaction by habit.
 
-If the configured provider/reliability strategy uses execution strategies or transient-failure retries, understand how explicit transactions interact with that strategy and use the provider/framework-recommended pattern.
+If the configured provider uses transient-failure retries (`EnableRetryOnFailure()`), `BeginTransactionAsync()` throws `InvalidOperationException` unless wrapped in the execution strategy:
+
+```csharp
+var strategy = db.Database.CreateExecutionStrategy();
+await strategy.ExecuteAsync(async () =>
+{
+    await using var tx = await db.Database.BeginTransactionAsync(ct);
+    // ... multiple SaveChangesAsync calls ...
+    await tx.CommitAsync(ct);
+});
+```
 
 ### Transactional Outbox Pattern
 Avoid dual-write race conditions when mutating relational state and emitting messages to an external broker by persisting outbox records in the same `SaveChangesAsync()` transaction as your domain changes. See `references/messaging.md` for implementation selection (Native EF Core Outbox, Wolverine `IDbContextOutbox<T>`, or legacy MassTransit v8.x).
@@ -168,44 +178,10 @@ catch (DbUpdateConcurrencyException)
 
 Do not silently retry or overwrite conflicting state without understanding the business semantics.
 
-## Migrations
+## Migrations & Compiled Models
 
-Migrations are part of schema evolution.
-
-- Review generated migrations instead of blindly applying them.
-- Check destructive operations carefully.
-- Consider deployment ordering for schema changes that must support multiple application versions.
-- Keep data migrations explicit when transformations cannot safely be represented as simple schema operations.
-- Do not treat production schema changes as an incidental side effect of application startup unless that is an intentional deployment strategy.
-
-### Migration execution
-
-Treat migration execution as a deployment/runtime concern rather than an automatic consequence of application startup.
-
-For production systems, prefer an explicit migration mechanism when the application is deployed with multiple instances, independently scaled services, restricted database permissions, or a deployment pipeline that can execute database changes separately.
-
-A dedicated migration project, worker/service, deployment job, CI/CD step, or equivalent mechanism can provide a useful operational boundary. Choose the mechanism that fits the deployment environment rather than requiring a specific project shape.
-
-For small applications or simple deployments, an explicit deployment step or another established project mechanism may be simpler than introducing a dedicated migration service. Startup migration can also be reasonable when it is an intentional strategy and its operational and permission implications are understood.
-
-When choosing a migration strategy, consider:
-
-- deployment topology and number of application instances
-- database permissions available to the application
-- migration ordering and transactional requirements
-- rollback and failure behavior
-- startup availability requirements
-- CI/CD and infrastructure capabilities
-- observability and operational ownership
-- whether the additional project/service materially improves the boundary
-
-Avoid relying on multiple application instances racing to apply migrations unless the chosen mechanism and database provider make that behavior safe and intentional.
-
-If a dedicated migration service or Aspire orchestration is already used by the repository, follow that established deployment pattern rather than introducing a second migration mechanism.
-
-### Compiled models
-
-For applications with large DbContext models, container environments prioritizing sub-second cold starts, or Native AOT targets, generate compiled models via `dotnet ef dbcontext optimize`. This shifts runtime model-discovery and building costs to build/pre-deployment time.
+- **Migrations:** Never apply `Database.Migrate()` at startup across multi-instance deployments; use idempotent SQL scripts or migration bundles. See [Zero-Downtime Database Migrations](database-migrations.md) for Expand/Contract, lock-safe DDL, and chunked backfills.
+- **Compiled models:** For large `DbContext` models, sub-second container cold starts, or Native AOT targets, generate compiled models via `dotnet ef dbcontext optimize`.
 
 ## Raw SQL
 

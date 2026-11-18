@@ -231,6 +231,7 @@ public class OrdersApiTests
         _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
         {
             SchemasToInclude = ["public"],
+            TablesToIgnore = ["__EFMigrationsHistory"],
             DbAdapter = DbAdapter.Postgres
         });
     }

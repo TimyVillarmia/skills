@@ -126,24 +126,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         {
             if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
             {
-                var entity = modelBuilder.Entity(entityType.ClrType);
-                // Include the original tenant in tracked UPDATE/DELETE predicates.
-                entity.Property<Guid>(nameof(ITenantEntity.TenantId)).IsConcurrencyToken();
-                // Named filter (EF Core 10+) avoids overwriting soft-delete filters;
-                // on EF Core 8/9, use entity.HasQueryFilter(CreateTenantFilter(entityType.ClrType));
-                entity.HasQueryFilter("TenantFilter", CreateTenantFilter(entityType.ClrType));
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property<Guid>(nameof(ITenantEntity.TenantId))
+                    .IsConcurrencyToken();
+
+                typeof(AppDbContext)
+                    .GetMethod(nameof(ApplyTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .MakeGenericMethod(entityType.ClrType)
+                    .Invoke(this, [modelBuilder]);
             }
         }
     }
 
-    private LambdaExpression CreateTenantFilter(Type entityType)
+    private void ApplyTenantFilter<TEntity>(ModelBuilder modelBuilder)
+        where TEntity : class, ITenantEntity
     {
-        var parameter = Expression.Parameter(entityType, "e");
-        var property = Expression.Property(parameter, nameof(ITenantEntity.TenantId));
-        // References 'this.CurrentTenantId' on the executing DbContext instance
-        var contextProperty = Expression.Property(Expression.Constant(this), nameof(CurrentTenantId));
-        var comparison = Expression.Equal(property, contextProperty);
-        return Expression.Lambda(comparison, parameter);
+        // Named filter (EF Core 10+) avoids overwriting soft-delete filters;
+        // on EF Core 8/9, use modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<TEntity>()
+            .HasQueryFilter("TenantFilter", e => e.TenantId == CurrentTenantId);
     }
 }
 ```

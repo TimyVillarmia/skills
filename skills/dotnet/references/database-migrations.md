@@ -169,12 +169,20 @@ Alternatively, orchestrate chunked updates from a background worker using `Execu
 ```csharp
 while (!ct.IsCancellationRequested)
 {
-    var count = await db.Users
+    var ids = await db.Users
+        .AsNoTracking()
         .Where(u => u.DisplayName == null && u.FullName != null)
+        .OrderBy(u => u.Id)
+        .Select(u => u.Id)
         .Take(5000)
+        .ToListAsync(ct);
+
+    if (ids.Count == 0) break;
+
+    await db.Users
+        .Where(u => ids.Contains(u.Id))
         .ExecuteUpdateAsync(s => s.SetProperty(u => u.DisplayName, u => u.FullName), ct);
 
-    if (count == 0) break;
     await Task.Delay(100, ct); // Yield to other database traffic
 }
 ```

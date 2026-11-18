@@ -1,6 +1,6 @@
 # Resilience & Fault Tolerance
 
-Use this reference when configuring outbound HTTP resilience, non-HTTP `ResiliencePipeline` strategies, retry/timeout budgets, circuit breakers, or upstream `429` handling.
+Use this reference when configuring outbound HTTP resilience, non-HTTP `ResiliencePipeline` strategies, inbound `UseRequestTimeouts`, retry/timeout budgets, circuit breakers, or upstream `429` handling.
 
 ## Contents
 
@@ -8,6 +8,7 @@ Use this reference when configuring outbound HTTP resilience, non-HTTP `Resilien
 - [Non-HTTP ResiliencePipeline](#non-http-resiliencepipeline)
 - [Retry safety and EF Core trap](#retry-safety-and-ef-core-trap)
 - [Timeout budgets and circuit breakers](#timeout-budgets-and-circuit-breakers)
+- [Inbound Request Timeouts middleware](#inbound-request-timeouts-middleware)
 - [Honoring upstream 429 and Retry-After](#honoring-upstream-429-and-retry-after)
 - [Partial failures and fallbacks](#partial-failures-and-fallbacks)
 - [Resilience anti-patterns](#resilience-anti-patterns)
@@ -37,7 +38,7 @@ The standard resilience handler executes strategies in this order (outermost to 
 5. **Attempt Timeout** (timeout per individual HTTP request attempt)
 
 > [!NOTE]
-> `Microsoft.Extensions.Http.Resilience` is published under Microsoft's standard package license. Polly 8.x is published under Apache-2.0 / BSD-3; maintainer licensing announcements apply only to future post-2026 majors, and transitive usage via Microsoft packages remains covered by Microsoft's license.
+> `Microsoft.Extensions.Http.Resilience` and `Microsoft.Extensions.Resilience` are published under Microsoft's standard package license. Direct Polly NuGet binaries published after November 16, 2026 carry the OSMF commercial EULA (pre-Nov-16 v8.x binaries remain BSD-3-Clause); transitive usage via Microsoft's resilience packages remains covered by Microsoft's license.
 
 ---
 
@@ -97,11 +98,39 @@ Use `AddResiliencePipeline<string, TResult>(...)` when the pipeline must inspect
 
 Keep timeout hierarchies mathematically consistent so outer deadlines do not prematurely abort valid retries or allow retries to exceed caller SLAs:
 
-$$\text{TotalRequestTimeout} > \text{AttemptTimeout} \times (\text{MaxRetryAttempts} + 1) + \text{TotalBackoff}$$
+`TotalRequestTimeout > AttemptTimeout * (MaxRetryAttempts + 1) + TotalBackoff`
 
 - Set **Attempt Timeout** tight enough to fail hung sockets quickly.
 - Set **Total Request Timeout** to the caller's SLA budget.
 - Configure **Circuit Breaker** `MinimumThroughput` and `SamplingDuration` high enough to avoid tripping on a handful of isolated errors during low traffic.
+
+---
+
+## Inbound Request Timeouts middleware
+
+Outbound resilience governs calls your service makes; ASP.NET Core's `AddRequestTimeouts` / `UseRequestTimeouts` enforces server-side deadlines on **incoming** HTTP requests:
+
+```csharp
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+        TimeoutStatusCode = StatusCodes.Status504GatewayTimeout
+    };
+    options.AddPolicy("export", TimeSpan.FromMinutes(2));
+});
+
+// Place AFTER UseRouting (when explicit) and BEFORE UseOutputCache / endpoints
+app.UseRequestTimeouts();
+
+app.MapGet("/api/reports/export", ExportReport).WithRequestTimeout("export");
+app.MapGet("/api/events/stream", StreamEvents).DisableRequestTimeout();
+```
+
+- **Cooperative cancellation only:** The middleware cancels `HttpContext.RequestAborted` (`CancellationToken`). Endpoints, EF Core queries, and outbound `HttpClient` calls must propagate `ct` or work continues in the background.
+- **Disabled under debugger:** Request timeouts do not fire when a debugger is attached (`Debugger.IsAttached`); verify timeout behavior without a debugger attached or via integration tests.
+- **Started responses & streams:** Once response headers/bytes have flushed (e.g., SSE or file streaming), the middleware cannot rewrite the status code to `504`—apply `.DisableRequestTimeout()` on long-lived streaming endpoints.
 
 ---
 
@@ -156,3 +185,5 @@ For non-critical downstream enrichments (recommendations, analytics, non-authori
 ❌ Setting `AttemptTimeout` >= `TotalRequestTimeout`, leaving zero budget for retries.
 
 ❌ Blindly awaiting unbounded `Retry-After` delays (e.g., 1 hour) inside synchronous request handlers.
+
+❌ Enabling `UseRequestTimeouts()` without propagating `CancellationToken` through handlers, EF Core queries, and outbound I/O.

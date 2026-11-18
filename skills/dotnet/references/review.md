@@ -81,6 +81,18 @@ When the target version supports newer capabilities, check whether the implement
 
 Do not require a newer syntax/API merely because it exists. A stable older construct can be correct and clearer in context.
 
+### ASP.NET Core 10 Upgrade & Breaking Changes
+
+| Breaking Change / Deprecation | Flag When Seen | .NET 10 Replacement / Action |
+|---|---|---|
+| `.WithOpenApi()` (`ASPDEPR002`) | Minimal API OpenAPI metadata | Use `AddOpenApi()` + document/operation transformers |
+| `ForwardedHeadersOptions.KnownNetworks` / `Microsoft.AspNetCore.HttpOverrides.IPNetwork` | Reverse-proxy configuration | Migrate to `KnownIPNetworks` + `System.Net.IPNetwork` |
+| Cookie redirects on API endpoints | `[ApiController]`, JSON Minimal APIs, `TypedResults` with cookie auth | Returns `401`/`403` via `IDisableCookieRedirectMetadata`; opt back in with `IAllowCookieRedirectMetadata` only if redirects are intentional |
+| `IExceptionHandler` diagnostic suppression | Custom `IExceptionHandler` returning `true` | Framework diagnostics are suppressed by default; set `ExceptionHandlerOptions.SuppressDiagnosticsCallback` if telemetry/alerts depend on them |
+| `WebHostBuilder` / `IWebHost` / `WebHost` | Legacy startup wiring | Migrate to `WebApplication.CreateBuilder()` or `Host.CreateApplicationBuilder()` |
+| `IActionContextAccessor` / `ActionContextAccessor` | Controller/helper DI | Replace with `HttpContext`, `LinkGenerator`, or endpoint routing |
+| `IncludeOpenAPIAnalyzers` / `Microsoft.Extensions.ApiDescription.Client` | `.csproj` / build tooling | Remove deprecated MVC OpenAPI analyzers and client generator package |
+
 ## Testing review
 
 Check whether tests verify behavior rather than implementation details. Look for missing coverage around changed behavior, error paths, authorization, concurrency, persistence semantics, and API contracts when applicable.
@@ -101,35 +113,12 @@ Do not request replacement of an established dependency merely because another l
 
 ## Common anti-patterns to check
 
-❌ `async void` methods (swallows exceptions; process crash risk).
+Check the **Non-negotiable guardrails** and **License watchlist** in `SKILL.md` (`async void`, sync-over-async, `DateTime.UtcNow`, unmanaged `HttpClient`, generic EF repositories, commercialized packages), plus:
+- N+1 database queries, accidental lazy-loading loops, or unbounded `ToListAsync()`.
+- Domain/business behavior hidden in middleware, persistence hooks, or Aspire AppHost orchestration.
+- API contracts leaking internal persistence entities or raw exception details.
 
-❌ Blocking asynchronous work (`Task.Result`, `.Wait()`, `.GetAwaiter().GetResult()`).
-
-❌ Untestable static time calls (`DateTime.Now`, `DateTime.UtcNow`) instead of `TimeProvider`.
-
-❌ Unbounded concurrency or unbounded collection/database queries.
-
-❌ Repeated unmanaged `new HttpClient()` creation (socket exhaustion).
-
-❌ N+1 database queries or accidental lazy-loading loops.
-
-❌ Generic repository abstractions that only rename EF Core.
-
-❌ Adding or bumping commercialized package traps without license clearance (MediatR 13+, FluentAssertions 8+, MassTransit 9+, AutoMapper 15+, direct Polly OSMF references).
-
-❌ Calling deprecated `.WithOpenApi()` in .NET 10 instead of relying on ASP.NET Core built-in OpenAPI.
-
-❌ Domain/business behavior hidden in middleware, persistence hooks, or Aspire AppHost orchestration.
-
-❌ API contracts leaking internal persistence models.
-
-❌ Broad exception catching that hides failures or turns unexpected errors into normal results.
-
-❌ Security-sensitive custom implementations.
-
-❌ New dependencies added without a concrete justification.
-
-These are review signals, not automatic findings. Confirm the actual impact first.
+Treat these as review signals, not automatic findings—confirm concrete impact first.
 
 ## Review output
 

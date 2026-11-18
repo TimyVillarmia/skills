@@ -2,6 +2,17 @@
 
 Use this reference when authoring, modifying, or refactoring FastEndpoints classes, routing, model binding, and response dispatch.
 
+## Contents
+
+- [1. Endpoint Class Variants](#1-endpoint-class-variants)
+- [2. Route Configuration & Verb Binding](#2-route-configuration--verb-binding)
+- [3. Model Binding & Parameter Sources](#3-model-binding--parameter-sources)
+- [4. Response Serialization (`Send*Async`)](#4-response-serialization-sendasync)
+- [5. Domain Entity Mappers](#5-domain-entity-mappers)
+- [6. Pre-Processors & Post-Processors](#6-pre-processors--post-processors)
+- [7. Native AOT & Trimming Support](#7-native-aot--trimming-support)
+- [8. OpenAPI Documentation & Scalar UI](#8-openapi-documentation--scalar-ui)
+
 ---
 
 ## 1. Endpoint Class Variants

@@ -4,7 +4,10 @@ Use this reference when coordinating asynchronous work, in-process locking, para
 
 ---
 
-## 1. In-Process Async Synchronization
+## 1. In-Process Synchronization
+
+### Synchronous Mutual Exclusion: `System.Threading.Lock` (.NET 9+)
+For synchronous critical sections (no `await` inside), prefer `private readonly Lock _gate = new();` over `object` (`lock (_gate)` lowers to `EnterScope()`). Never type the field as `object`—doing so falls back to `Monitor`.
 
 ### Async Mutual Exclusion: `SemaphoreSlim`
 Standard `lock` blocks the thread and cannot be used across `await` boundaries. Always use `SemaphoreSlim(1, 1)` with a strict `try/finally` pattern to prevent permanent deadlocks:

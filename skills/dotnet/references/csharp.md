@@ -61,13 +61,13 @@ public string Name
 }
 ```
 
-Use an explicit backing field when the state needs a meaningful name, is shared by multiple members, or the accessor logic becomes easier to understand with explicit state.
+Use an explicit backing field when the state needs a meaningful name, is shared by multiple members, or the accessor logic becomes easier to understand with explicit state. If an existing class already has a member named `field`, disambiguate inside accessors with `@field` or `this.field`.
 
 See [What's new in C# 14](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14) for the `field` keyword and its interaction with other C# 14 features.
 
 ### Extension blocks
 
-Use extension blocks when several related extension members belong to the same conceptual type and grouping improves discoverability.
+Use extension blocks when several related extension members belong to the same conceptual type and grouping improves discoverability (`extension` blocks cannot declare instance fields or static state).
 
 ```csharp
 public static class OrderExtensions

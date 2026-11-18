@@ -47,7 +47,7 @@ Reduce unnecessary network calls before optimizing serialization details. Consid
 
 - batching
 - appropriate caching
-- compression where beneficial
+- **response compression:** prefer compressing at the reverse proxy/CDN edge; if enabling in-app `AddResponseCompression()` / `UseResponseCompression()` (Brotli/Gzip), keep `EnableForHttps = false` (default) on authenticated endpoints mixing secrets with user-controlled input (BREACH attack)
 - connection reuse
 - payload size
 - timeouts
@@ -100,7 +100,7 @@ Use BenchmarkDotNet for isolated microbenchmarks on CPU-bound and allocation-sen
 1. **Running in Debug mode:** BenchmarkDotNet requires a Release build (`dotnet run -c Release`) to measure JIT-optimized code and inlining.
 2. **Omitting `[MemoryDiagnoser]`:** Always decorate benchmark classes with `[MemoryDiagnoser]` to track GC collections and allocated bytes.
 3. **Dead-code elimination:** The JIT eliminates computations whose results are never read. Always return benchmark results from the method or pass them to a consumer.
-4. **Mutating shared state:** Ensure benchmarks are idempotent; do not let iteration $N$ modify state that affects iteration $N+1$.
+4. **Mutating shared state:** Ensure benchmarks are idempotent; do not let iteration N modify state that affects iteration N+1.
 
 ### How to read results
 - **Mean / Median:** Average execution time. When Mean and Median diverge materially, inspect distribution skew.

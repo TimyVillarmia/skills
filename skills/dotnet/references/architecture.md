@@ -167,13 +167,33 @@ Command/request handlers extract properties from request DTOs and pass them to d
 ### Automated Mapping
 When mapping large models or across multiple architectural layers, prefer compile-time Roslyn source generators such as **Riok.Mapperly**. Avoid runtime reflection-based mappers (such as AutoMapper) which incur startup/memory overhead and fail under Native AOT compilation. Existing projects may use Mapster or AutoMapper; do not replace an established mapper without a concrete reason.
 
+## Dependency Injection, Lifetimes, and Keyed Services
+
+- **Lifetime selection:**
+  - `Singleton`: one per application; must be thread-safe. Never inject `Scoped` services (captive dependency) or resolve `IDisposable` `Transient` services from the root container (memory leak until shutdown).
+  - `Scoped`: one per HTTP request or explicit `IServiceScopeFactory.CreateAsyncScope()` (e.g., `DbContext`, per-request tenant/user context).
+  - `Transient`: new instance per resolution; use for lightweight, stateless services.
+- **Startup validation & container traps:**
+  - `WebApplication.CreateBuilder` enables `ValidateScopes` and `ValidateOnBuild` automatically in `Development`; keep both enabled in integration tests/CI so captive dependencies and missing registrations fail at startup rather than on the first production request.
+  - Never call `services.BuildServiceProvider()` inside service registration (`ASP0000` — creates duplicate singletons and leaks disposables).
+  - Use `TryAddScoped` / `TryAddSingleton` in shared library/module extensions when callers should be able to override defaults.
+- **Keyed Services (.NET 8+):** Use `AddKeyedScoped` / `AddKeyedSingleton` and `[FromKeyedServices("key")]` (or `IServiceProvider.GetRequiredKeyedService<T>(key)` for runtime dispatch) instead of custom strategy dictionaries or `IEnumerable<T>` switching hacks:
+
+```csharp
+builder.Services.AddKeyedScoped<IPaymentGateway, StripeGateway>("stripe");
+builder.Services.AddKeyedScoped<IPaymentGateway, AdyenGateway>("adyen");
+
+app.MapPost("/payments/stripe", (
+    [FromKeyedServices("stripe")] IPaymentGateway gateway) => gateway.ChargeAsync(...));
+```
+
 ## Options pattern & configuration validation
 
 For options registration, startup validation (`[OptionsValidator]` / `ValidateOnStart()`), options lifetimes, User Secrets, and feature flags, see [Configuration, Options & Feature Flags](configuration.md).
 
 ## Dependency selection
 
-Apply the authoritative [Dependency decisions](../SKILL.md#dependency-decisions) order from the main `.NET Engineering` skill: prefer platform capabilities and existing project dependencies, then consider a small explicit implementation for simple non-sensitive functionality, and finally evaluate a new third-party dependency when its value justifies the added cost.
+Apply the authoritative [Dependency decisions](../SKILL.md#dependency-decisions--license-watchlist) order from the main `.NET Engineering` skill: prefer platform capabilities and existing project dependencies, then consider a small explicit implementation for simple non-sensitive functionality, and finally evaluate a new third-party dependency when its value justifies the added cost.
 
 For architecture-specific decisions, consider whether the dependency creates a meaningful boundary, introduces coupling or lock-in, changes deployment/ownership concerns, or materially reduces complexity.
 

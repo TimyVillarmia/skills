@@ -16,7 +16,7 @@ Use this reference when configuring telemetry, metrics, logging, health probes, 
 
 ## OpenTelemetry Tracing & Metrics
 
-Configure tracing and metrics through framework-provided builder extensions (`Microsoft.Extensions.Hosting` / OpenTelemetry):
+When `Aspire.ServiceDefaults` is present, call `builder.AddServiceDefaults()` and `app.MapDefaultEndpoints()` rather than duplicating OpenTelemetry, health-check, and resilience wiring. Otherwise, configure tracing and metrics through framework-provided builder extensions (`Microsoft.Extensions.Hosting` / OpenTelemetry):
 
 ```csharp
 builder.Services.AddOpenTelemetry()

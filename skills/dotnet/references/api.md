@@ -9,6 +9,7 @@ Use this reference when a .NET application exposes or consumes HTTP APIs.
 - [Minimal APIs and controllers](#minimal-apis-and-controllers)
 - [HTTP semantics](#http-semantics)
 - [ProblemDetails and Error Handling Pipeline](#problemdetails-and-error-handling-pipeline)
+- [Middleware Pipeline and Custom Middleware](#middleware-pipeline-and-custom-middleware)
 - [API Versioning](#api-versioning)
 - [Validation](#validation)
 - [File uploads, streaming, and request size limits](#file-uploads-streaming-and-request-size-limits)
@@ -211,6 +212,9 @@ public sealed class GlobalExceptionHandler(
 }
 ```
 
+> [!NOTE]
+> **.NET 10 diagnostic suppression:** When `IExceptionHandler.TryHandleAsync` returns `true`, ASP.NET Core 10 suppresses framework unhandled-exception logs/metrics by default. Configure `app.UseExceptionHandler(new ExceptionHandlerOptions { SuppressDiagnosticsCallback = ctx => false })` if downstream telemetry or alerts rely on middleware diagnostics.
+
 ### Result-to-HTTP Status Code Mapping
 If the application uses a Result/ErrorOr-style model (such as `ErrorOr`), translate expected domain failures at the endpoint boundary into explicit typed HTTP results:
 
@@ -227,6 +231,31 @@ return result.MatchFirst<Results<Ok<UserResponse>, NotFound, Conflict, ProblemHt
             title: error.Code)
     });
 ```
+
+---
+
+## Middleware Pipeline and Custom Middleware
+
+Keep middleware registration in deliberate order so proxy headers, timeouts, CORS, authentication, rate limiting, caching, and antiforgery compose predictably:
+
+```csharp
+app.UseForwardedHeaders();    // 1. Resolve scheme/host/RemoteIpAddress from trusted proxies first
+app.UseExceptionHandler();    // 2. Wrap downstream failures in ProblemDetails
+app.UseStatusCodePages();
+// 3. UseHsts() / UseHttpsRedirection() only when TLS terminates at Kestrel (skip inside HTTP-only containers)
+app.UseRouting();             // 4. Explicit only if middleware runs before route matching (implicit in WebApplication)
+app.UseRequestTimeouts();     // 5. After UseRouting so endpoint timeout metadata resolves
+app.UseCors();                // 6. Before auth/rate-limiting/caching so preflight & error responses carry CORS headers
+app.UseAuthentication();      // 7. Establish caller identity
+app.UseRateLimiter();         // 8. After ForwardedHeaders + Authentication (per-user/IP); before Authorization
+app.UseAuthorization();       // 9. Enforce policies
+app.UseOutputCache();         // 10. After Cors + Auth/Authz
+app.UseAntiforgery();         // 11. After Auth/Authz, before endpoints
+// 12. Custom middleware, then endpoints (MapGroup / MapControllers)
+```
+
+- **Convention-based vs `IMiddleware`:** Convention-based middleware (`RequestDelegate next` in constructor) is instantiated as a **Singleton**—inject scoped dependencies into `InvokeAsync(HttpContext, ...)` rather than the constructor to avoid captive dependencies. Prefer factory-based **`IMiddleware`** (registered via `builder.Services.AddScoped<T>()`) when middleware needs scoped constructor injection or strict DI activation.
+- **Route-scoped cross-cutting logic:** Prefer Minimal API **`IEndpointFilter`** over global middleware when behavior applies only to specific endpoints or `MapGroup`s.
 
 ---
 
@@ -302,6 +331,11 @@ builder.Services.AddValidation();
 app.MapPost("/products", (CreateProductRequest req) => TypedResults.Ok(req));
 app.MapPost("/imports/raw", (RawPayload req) => TypedResults.Ok()).DisableValidation();
 ```
+
+**`AddValidation()` gotchas (.NET 10):**
+- **Separate DTO assemblies:** Source generation only scans the assembly calling `AddValidation()`. DTOs in separate `Contracts`/`Application` projects silently skip validation unless marked with `[assembly: ValidatableType(typeof(...))]` or registered from that assembly.
+- **Value types:** `[Required]` on non-nullable value types (`int`, `Guid`) still allows default `0` / `Guid.Empty`; use nullable `int?` + `[Required]`, `[Range]`, or `[JsonRequired]`.
+- **JSON strictness & SSE (.NET 10):** Set `JsonSerializerOptions.AllowDuplicateProperties = false` on security-sensitive inputs to prevent JSON property smuggling, and use native `TypedResults.ServerSentEvents(...)` for SSE streams instead of third-party packages.
 
 Never treat client-side validation as a security control.
 

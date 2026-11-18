@@ -14,6 +14,7 @@ Use this reference whenever code handles authentication, authorization, untruste
 - [Deserialization and files](#deserialization-and-files)
 - [Inbound webhooks](#inbound-webhooks)
 - [Browser security and CORS](#browser-security-and-cors)
+- [Data Protection and key persistence](#data-protection-and-key-persistence)
 - [Secrets and telemetry](#secrets-and-telemetry)
 - [Rate limiting and abuse](#rate-limiting-and-abuse)
 - [Dependencies](#dependencies)
@@ -49,6 +50,33 @@ Choose authentication from the actual client and deployment model:
 - **Policy-based authorization:** Prefer named policies (`RequireAuthorization("BillingAdmin")`) over scattered `Roles = "..."` magic strings.
 
 Validate tokens using established framework components. Never manually implement JWT parsing/signature validation, key rotation, OAuth/OIDC protocol behavior, password hashing, or cryptography.
+
+### JWT Bearer, OIDC & Claims Mapping
+
+Configure JWT Bearer authentication against the IdP's OIDC metadata (`Authority`) and disable legacy Microsoft XML claim-type remapping (`MapInboundClaims = false`) so standard JWT claims (`sub`, `role`, `scp`, `email`) stay intact:
+
+```csharp
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = authOptions.Authority; // Enables OIDC discovery + JWKS key rotation
+        options.Audience = authOptions.Audience;
+        options.MapInboundClaims = false; // Preserve 'sub', 'role', 'scp' instead of WCF schema URIs
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            NameClaimType = "sub",
+            RoleClaimType = "role",
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+```
+
+- **OIDC web/BFF flows:** Use authorization code flow with PKCE (`ResponseType = OpenIdConnectResponseType.Code`, `UsePkce = true`), `MapInboundClaims = false`, and `SaveTokens = false` unless tokens are required server-side (in which case persist tokens in a server-side `ITicketStore` rather than bloating browser cookies).
+- **Multiple authentication schemes:** Use `AddPolicyScheme` with `ForwardDefaultSelector` to route incoming requests between schemes (e.g., Cookies vs JWT Bearer, or multiple IdPs) cleanly.
+
+### API Endpoint Authentication Behavior (.NET 10)
+
+In ASP.NET Core 10, cookie authentication automatically returns `401 Unauthorized` and `403 Forbidden` instead of `302` login/access-denied redirects for known API endpoints (tagged via `IDisableCookieRedirectMetadata`, applied automatically to `[ApiController]`, JSON Minimal APIs, `TypedResults` endpoints, and SignalR). Opt a specific endpoint back into cookie redirects only when intentional via `IAllowCookieRedirectMetadata`.
 
 Authentication answers **who is the caller**. Authorization answers **what the caller may do**.
 
@@ -155,9 +183,9 @@ app.MapPut("/users/{id:guid}", async Task<Results<NoContent, NotFound>> (
 
 ## ASP.NET Core security pipeline
 
-Keep security middleware/order deliberate. Authentication must establish the user before authorization evaluates policies. Endpoint-specific authorization must not be bypassed by placing business logic behind a UI-only check.
+Keep security middleware order deliberate—see the canonical pipeline in [Middleware Pipeline and Custom Middleware](api.md#middleware-pipeline-and-custom-middleware). Authentication must establish the user before authorization evaluates policies, and `UseRateLimiter()` / `UseOutputCache()` / `UseAntiforgery()` must sit in their required positions.
 
-When using rate limiting, anti-forgery protection, CORS, HTTPS redirection, or other middleware, inspect the target ASP.NET Core version and existing pipeline rather than copying an unrelated middleware order.
+- **HTTPS / HSTS behind reverse proxies:** When TLS terminates at a reverse proxy, ingress, or load balancer, configure `UseForwardedHeaders()` (with explicit `KnownIPNetworks` / `KnownProxies`) and enforce HTTPS/HSTS at the edge rather than blindly calling `UseHttpsRedirection()` inside HTTP-only containers (port `8080`), which causes redirect loops or missing-HTTPS-port warnings.
 
 CORS is not an authentication mechanism.
 
@@ -205,6 +233,23 @@ For browser applications, consider CSRF, XSS, CORS, cookie flags, content securi
 For cookie authentication, configure `Secure`, `HttpOnly`, and an appropriate `SameSite` policy for the deployment model.
 
 Configure CORS with explicit allowed origins from validated configuration options. Never combine `AllowAnyOrigin()` (or wildcard origins) with `AllowCredentials()`, and never treat CORS as an authentication or authorization mechanism.
+
+## Data Protection and key persistence
+
+ASP.NET Core Data Protection encrypts authentication cookies, antiforgery tokens, and ASP.NET Core Identity tokens. Ephemeral local container keys invalidate sessions and antiforgery tokens on every restart or across load-balanced replicas.
+
+Persist keys to a shared store and encrypt them at rest in multi-instance or containerized deployments:
+
+```csharp
+builder.Services.AddDataProtection()
+    .SetApplicationName("orders-api") // Must match across all replicas
+    .PersistKeysToDbContext<AppDbContext>() // Or PersistKeysToStackExchangeRedis / Azure Blob / shared volume
+    .ProtectKeysWithAzureKeyVault(keyIdentifier, credential); // Or ProtectKeysWithCertificate(...)
+```
+
+- **Consistent `SetApplicationName`:** Always set `SetApplicationName(...)` explicitly so keys are not isolated by container content-root path.
+- **Encrypt keys at rest:** Protect persisted XML keys with a cloud KMS (Azure Key Vault / AWS KMS), certificate, or DPAPI; never store unencrypted key rings in shared storage.
+- **Right tool for the job:** Do not use `IDataProtector` for password hashing or permanent unrotated database column encryption.
 
 ## Secrets and telemetry
 
@@ -289,6 +334,8 @@ Review direct and transitive dependency vulnerabilities as normal maintenance.
 
 ❌ Treating CORS as authentication.
 
+❌ Leaving ephemeral local Data Protection keys in multi-replica or containerized apps that use cookies, antiforgery, or ASP.NET Core Identity.
+
 ## Threat modeling
 
 For meaningful security-sensitive features, identify assets, trust boundaries, actors/attacker capabilities, entry points, authorization decisions, abuse cases, mitigations, and residual risk.
@@ -304,6 +351,7 @@ For meaningful security-sensitive features, identify assets, trust boundaries, a
 - Deserialization and file handling are safe.
 - Secrets and sensitive data are not exposed in source, responses, or telemetry.
 - Transport security is preserved.
+- Data Protection keys are persisted and encrypted at rest in multi-replica or containerized deployments (when using cookies, antiforgery, or Identity).
 - Abuse/rate limits are appropriate.
 - Security-sensitive primitives use established implementations.
 - Failure behavior does not fail open.
