@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2026-11-18
+
+### Added
+- `api.md`: Documented `.Produces<T>()` / `.Produces(..., contentType)` / `.ProducesProblem()` requirement on untyped `IResult` endpoints so `Microsoft.AspNetCore.OpenApi` emits schemas for generated clients.
+- `security.md`: Added `Outbound webhooks` guidance covering `{timestamp}.{payload}` HMAC-SHA256 signing headers and `EndpointUrl` validation beyond `[Url]` (rejecting `#` fragments, enforcing `https`, and blocking private/loopback IPs).
+
 ## [1.2.0] - 2026-11-18
 
 ### Added

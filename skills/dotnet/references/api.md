@@ -363,6 +363,9 @@ Keep generated documentation aligned with actual behavior. Document meaningful d
   ```
   Never use `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core automatically discovers and documents Minimal API endpoints.
 
+- **Untyped `IResult` endpoints and OpenAPI schemas:**
+  When an endpoint returns `IResult` (instead of `Results<...>` / `TypedResults`)—for example, when replaying raw idempotent JSON or returning mixed JSON and `text/csv` responses—`Microsoft.AspNetCore.OpenApi` cannot infer response schemas and emits empty/`void` responses in `/openapi/v1.json`. Always attach explicit `.Produces<T>(statusCode)`, `.Produces(statusCode, contentType: "text/csv")`, or `.ProducesProblem(statusCode)` metadata so generated clients (Orval, Kiota, NSwag) receive accurate types.
+
 - **Scalar API Reference (`Scalar.AspNetCore`):**
   For developer-facing interactive documentation, prefer **Scalar** over legacy Swashbuckle:
   ```csharp

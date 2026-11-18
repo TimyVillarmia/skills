@@ -13,6 +13,7 @@ Use this reference whenever code handles authentication, authorization, untruste
 - [SSRF and outbound requests](#ssrf-and-outbound-requests)
 - [Deserialization and files](#deserialization-and-files)
 - [Inbound webhooks](#inbound-webhooks)
+- [Outbound webhooks](#outbound-webhooks)
 - [Browser security and CORS](#browser-security-and-cors)
 - [Data Protection and key persistence](#data-protection-and-key-persistence)
 - [Secrets and telemetry](#secrets-and-telemetry)
@@ -225,6 +226,13 @@ Verify inbound webhook authenticity using the **raw request body bytes** before 
 2. Compute `HMACSHA256.HashData(secretBytes, rawBodyBytes)` and decode the caller's hex/base64 signature header into bytes.
 3. Compare with `CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes)` to prevent timing attacks.
 4. Enforce a bounded timestamp tolerance window (e.g., ±5 minutes via `TimeProvider`) and record the unique event ID / nonce in a short-lived deduplication table or cache for replay protection.
+
+## Outbound webhooks
+
+When dispatching webhooks via `HttpClient` (typically from a Transactional Outbox worker):
+
+- **Sign `{timestamp}.{payload}` with HMAC-SHA256:** Include `X-*-Timestamp` (Unix seconds), `X-*-Signature` (`sha256=<hex>`), `X-*-Event`, and a stable `X-*-Delivery` ID (the outbox message ID) so receivers can verify authenticity, enforce replay windows, and deduplicate retries.
+- **Validate `EndpointUrl` beyond `[Url]`:** The `[Url]` attribute accepts URL fragments (`#...`, such as browser SPA `#!...` view URLs) and non-HTTP schemes. Reject URLs with non-empty `Uri.Fragment` (HTTP clients strip fragments before sending), require `https` outside local development, and apply SSRF protections (block private/loopback/link-local IPs via `SocketsHttpHandler.ConnectCallback`) for tenant-configurable URLs.
 
 ## Browser security and CORS
 
