@@ -4,7 +4,7 @@ description: "Use when building, modifying, debugging, or reviewing .NET 10 / C#
 license: MIT
 metadata:
   author: Timy
-  version: "1.2"
+  version: "1.3"
 ---
 
 # .NET Engineering
@@ -77,14 +77,16 @@ Do not add or upgrade these commercialized packages without explicit license app
 
 ## Modern greenfield defaults
 
-Apply only when starting new projects or unconstrained features (if a major choice like database engine, auth/IdP, or messaging is genuinely unspecified, state the recommended default + 1-line rationale and ask if any constraint overrides it):
-- Solution & build: `.slnx`, `Directory.Build.props` (`Nullable=enable`, `ImplicitUsings=enable`, `TreatWarningsAsErrors=true`, `AnalysisLevel=latest-recommended`), and Central Package Management (`Directory.Packages.props` with `ManagePackageVersionsCentrally=true`) for multi-project solutions.
+Apply only when starting new projects or unconstrained features. **Auth/IdP: always ask first and assume no default** (JWT Bearer + OIDC IdP, ASP.NET Core Identity, Cookies + OIDC/BFF, API keys, or none yet). If the database engine or messaging is unspecified, state the recommended default + 1-line rationale and ask if any constraint overrides it. For new solution setup, use the `dotnet-scaffold` skill (it runs this intake before generating files).
+- Solution & build: `.slnx`, `Directory.Build.props` (`Nullable=enable`, `ImplicitUsings=enable`, `AnalysisLevel=latest-recommended`, `TreatWarningsAsErrors=true` in Release), Central Package Management (`Directory.Packages.props` with `ManagePackageVersionsCentrally=true`) for multi-project solutions, and `global.json` pinning the SDK.
 - Vertical slices with direct handler injection, `TypedResults`, and a `Result`/`ErrorOr` model for expected failures.
 - Static `MapGroup` extensions on `IEndpointRouteBuilder` (avoids reflection scanning; Native AOT-friendly).
+- Errors: `AddProblemDetails()` + `IExceptionHandler` + `UseStatusCodePages()` (see `references/api.md`).
 - `AddValidation()` + `[OptionsValidator]` / `ValidateOnStart()`.
-- `AddOpenApi()` + `Scalar.AspNetCore` (`ProxyUrl = null` in Development).
-- `AddRateLimiter`, `Microsoft.Extensions.Http.Resilience`, `Microsoft.Extensions.Resilience`, and `HybridCache` (.NET 9+).
-- PostgreSQL 18 (when a relational DB is needed and unspecified) + `Guid.CreateVersion7()` (.NET 9+) for time-ordered keys (PostgreSQL/MySQL/SQLite; see `references/efcore.md` for SQL Server).
+- `AddOpenApi()` + `Scalar.AspNetCore` (`ProxyUrl = null` in Development); `System.Text.Json` source generation (`JsonSerializerContext`).
+- Observability: OpenTelemetry (OTLP) + `[LoggerMessage]` + live/ready health checks (see `references/observability.md`).
+- `AddRateLimiter`, `AddRequestTimeouts()`, `Microsoft.Extensions.Http.Resilience`, `Microsoft.Extensions.Resilience`, and `HybridCache` (.NET 9+).
+- PostgreSQL 18 (when a relational DB is needed and unspecified) + `Guid.CreateVersion7()` (.NET 9+) for time-ordered keys (PostgreSQL/MySQL/SQLite; see `references/efcore.md` for SQL Server); messaging via Native EF Core Outbox or `WolverineFx` (MIT).
 - `MSTest.Sdk` on Microsoft.Testing.Platform (`global.json` with `"test": { "runner": "Microsoft.Testing.Platform" }`) + `Testcontainers`.
 
 ## Validation

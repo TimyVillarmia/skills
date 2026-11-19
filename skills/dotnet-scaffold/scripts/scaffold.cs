@@ -40,6 +40,8 @@ public static class Program
         string solutionName = "SampleApp";
         string outputDir = Path.Combine(Directory.GetCurrentDirectory(), solutionName);
         bool withTestcontainers = false;
+        string database = "postgres";
+        string[] supportedDatabases = ["postgres", "sqlserver", "sqlite", "none"];
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -55,10 +57,21 @@ public static class Program
             {
                 withTestcontainers = true;
             }
+            else if (args[i] == "--database" && i + 1 < args.Length)
+            {
+                database = args[++i].ToLowerInvariant();
+            }
+        }
+
+        if (!supportedDatabases.Contains(database))
+        {
+            Console.Error.WriteLine($"[ERROR] Unsupported --database '{database}'. Use one of: {string.Join(", ", supportedDatabases)}.");
+            return 1;
         }
 
         Console.WriteLine($"[INFO] Solution Name: {solutionName}");
         Console.WriteLine($"[INFO] Output Directory: {outputDir}");
+        Console.WriteLine($"[INFO] Database: {database}");
         Console.WriteLine($"[INFO] Testcontainers included: {withTestcontainers}");
 
         if (Directory.Exists(outputDir) && Directory.EnumerateFileSystemEntries(outputDir).Any())
@@ -162,10 +175,15 @@ public sealed class SmokeTests
             return 1;
         }
 
-        if (withTestcontainers)
+        if (withTestcontainers && database is "sqlite" or "none")
         {
-            Console.WriteLine("[INFO] Adding Testcontainers.PostgreSql and Respawn...");
-            RunCommand("dotnet", $"add \"{testProjFile}\" package Testcontainers.PostgreSql", outputDir);
+            Console.WriteLine($"[INFO] Skipping Testcontainers: not applicable for --database {database}.");
+        }
+        else if (withTestcontainers)
+        {
+            string tcPackage = database == "sqlserver" ? "Testcontainers.MsSql" : "Testcontainers.PostgreSql";
+            Console.WriteLine($"[INFO] Adding {tcPackage} and Respawn...");
+            RunCommand("dotnet", $"add \"{testProjFile}\" package {tcPackage}", outputDir);
             RunCommand("dotnet", $"add \"{testProjFile}\" package Respawn", outputDir);
 
             // Check Docker availability

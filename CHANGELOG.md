@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0] - 2026-11-19
+
+### Added
+- `dotnet-scaffold` (v1.1): Greenfield Intake step before `scripts/scaffold.cs` — always asks for auth/IdP (no assumed default), recommends + confirms database (PostgreSQL 18), architecture (Vertical Slice), and extras (Testcontainers, outbox, Aspire); stops and reports when headless.
+- `scaffold.cs`: `--database postgres|sqlserver|sqlite|none` selects `Testcontainers.PostgreSql` or `Testcontainers.MsSql` (none for `sqlite`/`none`) and rejects unknown values.
+
+### Changed
+- `dotnet` (v1.3): Greenfield defaults now require asking for auth first, and add `AddProblemDetails()` + `IExceptionHandler`, OpenTelemetry + `[LoggerMessage]` + health checks, `JsonSerializerContext`, `AddRequestTimeouts()`, `global.json` SDK pin, and Native EF Core Outbox / `WolverineFx`; `TreatWarningsAsErrors` wording aligned with the Release-only scaffold asset.
+
+### Fixed
+- `dotnet-scaffold/assets/Directory.Packages.props`: Pinned `Microsoft.OpenApi` to `2.13.1` (transitive pinning) to resolve `NU1903` (GHSA-v5pm-xwqc-g5wc) in Release builds.
+
 ## [1.2.1] - 2026-11-18
 
 ### Added

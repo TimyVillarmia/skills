@@ -1,10 +1,10 @@
 ---
 name: dotnet-scaffold
-description: Scaffold a new .NET solution, project, test project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project, new test project, new entity, or CQRS/Vertical Slice feature. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
+description: Scaffold a new .NET solution, project, test project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project setup, bootstrapping or initializing a new repo/API/service, new test project, new entity, or CQRS/Vertical Slice feature. Runs a greenfield intake (auth, database, architecture) before generating a new solution. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
 license: MIT
 metadata:
   author: Timy
-  version: "1.0"
+  version: "1.1"
 ---
 
 # .NET Scaffolding
@@ -37,12 +37,28 @@ Before generating code, inspect:
   - **Modular Monolith:** Independent module boundaries under `src/Modules/<ModuleName>/`.
   *Always adapt new feature code to match the host architecture. Never impose VSA on a Clean Architecture codebase or vice-versa.*
 
-### 2. Scaffold Greenfield Solution
+### 2. Greenfield Intake (new solution only)
+Skip this step when adding a project or feature to an existing repository. Before running `scripts/scaffold.cs`, ask in one batched message (skip anything the user already specified):
+
+| Decision | Default | Rule |
+|---|---|---|
+| **Auth / IdP** | *None assumed* | Always ask: JWT Bearer + external OIDC IdP · ASP.NET Core Identity (incl. passkeys) · Cookies + OIDC / BFF · API keys · No auth yet |
+| **Database** | PostgreSQL 18 | Recommend with a 1-line rationale, then confirm: SQL Server / Azure SQL · SQLite · None |
+| **Architecture** | Vertical Slice | Recommend, then confirm: Clean Architecture · Modular Monolith |
+| **Extras** | Off unless needed | Confirm: Testcontainers (when a DB is used) · messaging/outbox (Native EF Core Outbox or `WolverineFx`) · Aspire AppHost |
+
+- Do not scaffold until auth is answered (an explicit "no auth yet" counts). If running headless or the user cannot be asked, stop and report the unanswered decisions instead of assuming defaults.
+- After scaffolding, wire the chosen auth using the `dotnet` skill's security reference (fallback `RequireAuthenticatedUser()` policy, named policies, `MapInboundClaims = false`), and the chosen database using its EF Core reference.
+- Record every decision under *Architecture & Dependency Decisions* in the Reporting Contract.
+
+### 3. Scaffold Greenfield Solution
 For a new solution, invoke the deterministic scaffolding script rather than re-deriving configuration:
 
 ```bash
-dotnet run <path-to-skill>/scripts/scaffold.cs -- -n <SolutionName> -o <OutputDir> [--with-testcontainers]
+dotnet run <path-to-skill>/scripts/scaffold.cs -- -n <SolutionName> -o <OutputDir> [--with-testcontainers] [--database postgres|sqlserver|sqlite|none]
 ```
+
+`--database` (default `postgres`) selects the Testcontainers module added by `--with-testcontainers`: `postgres` → `Testcontainers.PostgreSql`, `sqlserver` → `Testcontainers.MsSql`; `sqlite` and `none` add no Testcontainers packages.
 
 The script automates:
 - Modern XML solution creation (`dotnet new sln --format slnx`).
@@ -58,14 +74,14 @@ Reusable asset definitions reside in `assets/`:
 - `.editorconfig`: Standard .NET code formatting rules.
 - `TestProject.csproj`: Canonical `MSTest.Sdk` test project template without inline versions.
 
-### 3. Scaffold Test Project
+### 4. Scaffold Test Project
 When adding a test project to an existing solution:
 - **Default Test Framework:** Current `MSTest.Sdk` (MTP-native, standalone executable). Reference `assets/TestProject.csproj`.
 - **Alternative Framework:** `xUnit v3` for existing xUnit solutions.
 - **Relational Persistence (Conditional):** Include `Testcontainers` (`Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` **only** when the project uses relational persistence.
 - **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider** because in-memory providers do not enforce relational constraints, transactions, or SQL semantics.
 
-### 4. Scaffold Feature / Slices
+### 5. Scaffold Feature / Slices
 
 Generate complete feature slices conforming to the detected architecture:
 
@@ -98,7 +114,7 @@ Key rules across all architectures:
 - Do not call `.WithOpenApi()`; it is deprecated in .NET 10 (`ASPDEPR002`). ASP.NET Core built-in OpenAPI tracks endpoints automatically.
 - Follow the dependency decision order in the `dotnet` skill and check the Commercial License Watchlist.
 
-### 5. Verify
+### 6. Verify
 Always verify scaffolding with real commands:
 1. Restore dependencies: `dotnet restore`
 2. Build solution in both configurations: `dotnet build -c Debug` and `dotnet build -c Release`

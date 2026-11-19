@@ -82,7 +82,8 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 
 | Component | Covers |
 |---|---|
-| `scripts/scaffold.cs` | Cross-platform C# runner (`dotnet run scaffold.cs`) targeting .NET 10 LTS |
+| Greenfield intake | Asks auth/IdP first (no default); confirms database, architecture, and extras before scaffolding a new solution |
+| `scripts/scaffold.cs` | Cross-platform C# runner (`dotnet run scaffold.cs`) targeting .NET 10 LTS, with `--database` selecting the Testcontainers module |
 | `assets/` | Central Package Management (`Directory.Packages.props`), `Directory.Build.props`, `global.json`, `.editorconfig`, and `SliceTemplate` |
 | Solution layout | `.slnx` solution format with Debug and Release build validation |
 
