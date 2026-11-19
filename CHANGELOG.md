@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.1] - 2026-11-19
+
+### Changed
+- `SKILL.md` & `api.md`: Clarified `TypedResults` (`Results<...>`) for 2–3 direct outcomes vs. `Result`/`ErrorOr` + `.ToIResult()` + `.Produces(...)` for domain-heavy endpoints, and documented the `MapApiEndpoints()` hub pattern to keep `Program.cs` to one line with `MapGroup`.
+
 ## [1.3.0] - 2026-11-19
 
 ### Added

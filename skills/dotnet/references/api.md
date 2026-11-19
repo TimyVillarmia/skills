@@ -57,7 +57,7 @@ Use the style already established by the project. For new minimal APIs, prefer e
 
 For .NET 10/C# 14, use modern APIs such as `TypedResults`, endpoint filters, built-in validation facilities, `ProblemDetails`, and built-in OpenAPI support where they fit the project.
 
-`TypedResults` is often preferable because the declared return type communicates the response contract, but `IResult`/`Results` remain valid when the surrounding API intentionally uses them or when the broader contract is clearer that way.
+`TypedResults` (`Results<Ok<T>, NotFound, ...>`) is the default for endpoints with 2–3 direct outcomes because the declared return type drives OpenAPI schema inference and enables direct delegate unit testing. When a domain-oriented codebase uses a `Result`/`ErrorOr<T>` pattern with many expected failure modes (`NotFound`, `Validation`, `Conflict`, `Forbidden`), `IResult` via a shared `.ToIResult()` mapper + `.Produces<T>(...)`/`.ProducesProblem(...)` is a clean alternative that avoids verbose multi-type `Results<...>` unions on every endpoint (return `TypedResults.*` inside `.ToIResult()` for consistent `ProblemDetails` behavior).
 
 Good:
 
@@ -83,11 +83,10 @@ For applications with multiple endpoints per domain/resource, organize endpoints
 ```csharp
 public static class UserEndpoints
 {
-    public static RouteGroupBuilder MapUserEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder api)
     {
-        var group = app.MapGroup("/api/users")
-            .WithTags("Users")
-            .RequireAuthorization();
+        var group = api.MapGroup("/users")
+            .WithTags("Users");
 
         group.MapGet("/{id:guid}", GetUserById);
         group.MapPost("/", CreateUser);
@@ -106,9 +105,28 @@ public static class UserEndpoints
 }
 ```
 
+Wire feature groups through a single `MapApiEndpoints()` hub so `Program.cs` stays one line and shared prefixes, authorization, and filters live in one place:
+
+```csharp
+// Endpoints/EndpointRegistration.cs
+public static class EndpointRegistration
+{
+    public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
+    {
+        var api = app.MapGroup("/api")
+            .RequireAuthorization();
+
+        api.MapUserEndpoints();
+        // Register additional feature groups here
+
+        return app;
+    }
+}
+```
+
 In `Program.cs`:
 ```csharp
-app.MapUserEndpoints();
+app.MapApiEndpoints();
 ```
 
 This pattern avoids reflection scanning, is Native AOT-friendly, and cascades authorization, filters, and OpenAPI metadata across the group.

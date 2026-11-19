@@ -79,8 +79,8 @@ Do not add or upgrade these commercialized packages without explicit license app
 
 Apply only when starting new projects or unconstrained features. **Auth/IdP: always ask first and assume no default** (JWT Bearer + OIDC IdP, ASP.NET Core Identity, Cookies + OIDC/BFF, API keys, or none yet). If the database engine or messaging is unspecified, state the recommended default + 1-line rationale and ask if any constraint overrides it. For new solution setup, use the `dotnet-scaffold` skill (it runs this intake before generating files).
 - Solution & build: `.slnx`, `Directory.Build.props` (`Nullable=enable`, `ImplicitUsings=enable`, `AnalysisLevel=latest-recommended`, `TreatWarningsAsErrors=true` in Release), Central Package Management (`Directory.Packages.props` with `ManagePackageVersionsCentrally=true`) for multi-project solutions, and `global.json` pinning the SDK.
-- Vertical slices with direct handler injection, `TypedResults`, and a `Result`/`ErrorOr` model for expected failures.
-- Static `MapGroup` extensions on `IEndpointRouteBuilder` (avoids reflection scanning; Native AOT-friendly).
+- Vertical slices with direct handler injection; use `TypedResults` (`Results<...>`) for endpoints with 2–3 direct outcomes, or a `Result`/`ErrorOr` model with a shared `.ToIResult()` mapper + `.Produces(...)` for domain-heavy endpoints with many failure modes.
+- Static `MapGroup` extensions on `IEndpointRouteBuilder` wired through a single `MapApiEndpoints()` hub (keeps `Program.cs` to one line, avoids reflection scanning, and stays Native AOT-friendly).
 - Errors: `AddProblemDetails()` + `IExceptionHandler` + `UseStatusCodePages()` (see `references/api.md`).
 - `AddValidation()` + `[OptionsValidator]` / `ValidateOnStart()`.
 - `AddOpenApi()` + `Scalar.AspNetCore` (`ProxyUrl = null` in Development); `System.Text.Json` source generation (`JsonSerializerContext`).
