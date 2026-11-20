@@ -1,0 +1,17 @@
+{
+    "name": "dotnet-skills",
+    "logo": "assets/logo.png",
+    "displayName": ".NET Engineering Skills",
+    "description": "Agent skills for .NET 10 LTS engineering standards, FastEndpoints REPR APIs, and solution/vertical-slice scaffolding.",
+    "version": "1.0.0",
+    "author": {
+        "name": "TimyVillarmia",
+        "url": "https://github.com/TimyVillarmia"
+    },
+    "repository": "https://github.com/TimyVillarmia/skills",
+    "suggestedPrompts": [
+        "Review this .NET code for performance, security, and EF Core best practices",
+        "Scaffold a new .NET 10 solution with vertical slices and Testcontainers",
+        "Add a FastEndpoints endpoint with FluentValidation and integration tests"
+    ]
+}
