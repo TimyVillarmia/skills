@@ -1,8 +1,20 @@
-# Agent skills
+<p align="center">
+  <img src="assets/logo.png" alt=".NET Engineering Skills logo" width="128" />
+</p>
+
+# .NET Engineering Agent Skills
 
 Agent skills for .NET software engineering and architecture. Works with Antigravity, Claude Code, Cursor, GitHub Copilot, and other tools that support the Agent Skills format.
 
 ## Installation
+
+### Antigravity (`agy` CLI)
+
+Install all skills as an Antigravity plugin:
+
+```bash
+agy plugin install https://github.com/TimyVillarmia/skills
+```
 
 ### Using `npx skills` ([skills.sh](https://skills.sh))
 
