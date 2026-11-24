@@ -36,6 +36,7 @@ Use this reference when designing, writing, repairing, or scaffolding tests in m
    - **Persistence tests (`Testcontainers`):** For real database queries, migrations, transactions, and concurrency behavior.
 3. **No in-memory databases for relational testing.** The EF Core In-Memory provider (`UseInMemoryDatabase`) does not enforce foreign keys, unique constraints, transactions, column types, or database-specific SQL functions. It gives false confidence. Use Testcontainers for relational database tests; if Docker is unavailable in the environment, report the persistence suite under **Unverified Checks** rather than substituting `UseInMemoryDatabase`.
 4. **Deterministic time.** For business logic with time-dependent branching (deadlines, expirations, schedules), inject `TimeProvider` and control time in tests using `FakeTimeProvider` rather than calling `DateTime.UtcNow` directly.
+5. **Contract change vs. regression.** When a test fails after a code change, verify whether it reflects an intentional contract/spec change or an unintended regression in production code before touching assertions—never bulk-rewrite failing tests just to turn the suite green.
 
 ---
 

@@ -91,6 +91,10 @@ Apply only when starting new projects or unconstrained features. **Auth/IdP: alw
 
 ## Validation
 
+Use a tight feedback loop rather than bulk-editing tests blind:
+- **Semantic-first C# refactors:** When changing C# types, enums, or signatures, use semantic tooling (Roslyn/IDE symbol references and diagnostics) first to map compile-time callers, then grep only for string-literal fixtures, migrations/SQL, and frontend/OpenAPI contracts.
+- **Build + unit-first loop:** Run `dotnet build` and focused/unit tests immediately after production edits so compiler errors and unit failures drive exact fixes; run the full test suite once after changes settle.
+
 Run proportional standalone checks after edits:
 1. `dotnet format --verify-no-changes` (when appropriate)
 2. `dotnet build <project-or-sln> -c Debug`
