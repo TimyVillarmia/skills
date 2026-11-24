@@ -1,7 +1,7 @@
 ---
 name: dotnet-scaffold
 description: Scaffold a new .NET solution, project, test project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project setup, bootstrapping or initializing a new repo/API/service, new test project, new entity, or CQRS/Vertical Slice feature. Runs a greenfield intake (auth, database, architecture) before generating a new solution. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
-argument-hint: <target: "new solution <Name>", "add test project", or "add feature <description>">
+argument-hint: '<target: "new solution <Name>", "add test project", or "add feature <description>">'
 license: MIT
 metadata:
   author: Timy
