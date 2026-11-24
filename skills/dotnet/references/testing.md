@@ -12,6 +12,7 @@ Use this reference when designing, writing, repairing, or scaffolding tests in m
 - [Alternative: xUnit v3 Implementation Pattern](#alternative-xunit-v3-implementation-pattern)
 - [Deterministic time testing](#deterministic-time-testing)
 - [Contract testing for API evolution](#contract-testing-for-api-evolution)
+- [Backfilling tests for existing code](#backfilling-tests-for-existing-code)
 - [Anti-patterns to reject](#anti-patterns-to-reject)
 
 ## Official references
@@ -347,6 +348,19 @@ public void Trial_After15Days_IsExpired()
 ## Contract testing for API evolution
 
 When backward compatibility with external consumers matters, verify HTTP contracts in CI by diffing the generated `/openapi/v1.json` document against a checked-in baseline or snapshot-testing the OpenAPI JSON output inside `WebApplicationFactory` integration tests.
+
+---
+
+## Backfilling tests for existing code
+
+When adding or improving test coverage for an existing feature or use case:
+
+1. **Locate the slice & enumerate outcomes:** Read the command/query, handler, validator, and endpoint first. List every distinct outcome — each guard/failure branch and the happy path — before writing tests.
+2. **Extend existing suites:** Check existing unit and integration test classes for the feature first; extend them rather than creating duplicate files or fixtures.
+3. **Meet the minimum coverage bar per slice:**
+   - **Handler / domain unit tests:** One test per failure/guard branch (asserting the exact domain error/result) plus a happy-path test asserting persisted state and raised domain events where applicable.
+   - **Validator tests:** One failing test per validation rule plus one fully valid input.
+   - **HTTP integration tests (`WebApplicationFactory` + `Testcontainers`):** One unauthorized test (`401`) for new protected route families, one happy-path test verifying persisted state via a follow-up `GET` (or database read), and one error-translation test (`400`/`404`/`409`) when the handler has failure paths.
 
 ---
 

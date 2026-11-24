@@ -4,6 +4,8 @@ Use this reference when reviewing a diff, pull request, implementation, or compl
 
 ## Review workflow
 
+Review only — do not modify code unless the user asks to apply fixes.
+
 1. Read repository/project instructions.
 2. Understand the task and intended behavior.
 3. Inspect the complete diff, not only the first suspicious file.
@@ -53,7 +55,7 @@ Check HTTP semantics, contracts, validation, authorization, information disclosu
 
 ## Security review
 
-Check authentication, authorization, input handling, injection (`FromSqlRaw` interpolation), SSRF, deserialization (`BinaryFormatter`), weak crypto (`MD5`/`SHA1`), file handling, secrets, sensitive logging, transport security, wildcard CORS with credentials, rate limiting, endpoints missing explicit auth/`AllowAnonymous` intent, and tenant isolation where relevant.
+Check authentication, authorization (both endpoint-level policies and handler/query-level resource ownership to prevent BOLA/IDOR — see [Resource-Based Authorization](security.md#resource-based-authorization-bola--idor-prevention)), input handling, injection (`FromSqlRaw` interpolation), SSRF, deserialization (`BinaryFormatter`), weak crypto (`MD5`/`SHA1`), file handling, secrets, sensitive logging, transport security, wildcard CORS with credentials, rate limiting, endpoints missing explicit auth/`AllowAnonymous` intent, and tenant isolation where relevant.
 
 Run `dotnet package list --vulnerable --include-transitive` when reviewing dependencies. Skip or mark `INFO` for test-fixture and `appsettings.Development.json` dev-only values rather than inflating them to High/Critical, and note that static review does not replace runtime or penetration testing.
 
@@ -119,6 +121,7 @@ Do not request replacement of an established dependency merely because another l
 
 Check the **Non-negotiable guardrails** and **License watchlist** in `SKILL.md` (`async void`, sync-over-async, `DateTime.UtcNow`, unmanaged `HttpClient`, generic EF repositories, commercialized packages), plus:
 - N+1 database queries, accidental lazy-loading loops, or unbounded `ToListAsync()`.
+- `HybridCache`-cached reads missing matching key/tag invalidation in mutating commands.
 - Domain/business behavior hidden in middleware, persistence hooks, or Aspire AppHost orchestration.
 - API contracts leaking internal persistence entities or raw exception details.
 
@@ -143,5 +146,7 @@ Example:
 - **Recommended Fix:** Bind to an explicit `UpdateProductRequest` record and map only allowed fields to the tracked entity.
 
 Prefer a small number of high-confidence findings over speculative concerns.
+
+Close every review with a one-line **Verdict:** `Ready to commit/merge` | `Ready with minor nits` | `Changes required` (naming the blocking items).
 
 If no substantive problems are found, state so clearly after reviewing the full change and relevant context.

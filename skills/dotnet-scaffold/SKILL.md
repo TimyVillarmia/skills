@@ -1,10 +1,11 @@
 ---
 name: dotnet-scaffold
 description: Scaffold a new .NET solution, project, test project, or complete feature/entity/vertical slice (command, handler, endpoint, validation, tests) following repository conventions. Use when creating something new from scratch — new project setup, bootstrapping or initializing a new repo/API/service, new test project, new entity, or CQRS/Vertical Slice feature. Runs a greenfield intake (auth, database, architecture) before generating a new solution. For engineering guidance on existing code use the dotnet skill, and for Aspire-specific workflows use the Aspire skill.
+argument-hint: <target: "new solution <Name>", "add test project", or "add feature <description>">
 license: MIT
 metadata:
   author: Timy
-  version: "1.1"
+  version: "1.2"
 ---
 
 # .NET Scaffolding
@@ -67,6 +68,8 @@ The script automates:
 - Web API and test projects referencing reusable templates in `assets/`.
 - Dual-configuration verification (`dotnet build` and `dotnet test` in Debug and Release).
 
+After scaffolding, consider adding a thin (~30-line) repo-local `AGENTS.md` / `CLAUDE.md` recording the chosen stack (auth, database, architecture, and build/test commands) so project-specific conventions travel with the repository.
+
 Reusable asset definitions reside in `assets/`:
 - `Directory.Build.props`: Enforces central compiler warnings and active LTS (`net10.0`).
 - `Directory.Packages.props`: Central package management skeleton.
@@ -79,6 +82,7 @@ When adding a test project to an existing solution:
 - **Default Test Framework:** Current `MSTest.Sdk` (MTP-native, standalone executable). Reference `assets/TestProject.csproj`.
 - **Alternative Framework:** `xUnit v3` for existing xUnit solutions.
 - **Relational Persistence (Conditional):** Include `Testcontainers` (`Testcontainers.PostgreSql`, `Testcontainers.MsSql`) and `Respawn` **only** when the project uses relational persistence.
+- **Architecture Tests (CA / Modular Monolith):** For Clean Architecture or Modular Monolith solutions, include an `ArchitectureTests` suite (e.g., `NetArchTest.Rules`) so layer and module boundary rules are enforced on every `dotnet test` run.
 - **Docker Prerequisite:** Testcontainers requires a running Docker daemon. If Docker is unavailable in the environment, report this clearly in the verification summary; **never silently fall back to the EF Core in-memory provider** because in-memory providers do not enforce relational constraints, transactions, or SQL semantics.
 
 ### 5. Scaffold Feature / Slices
@@ -107,6 +111,8 @@ tests/<App>.Tests/Integration/<Area>/<Action>Tests.cs          // WebApplication
 ```
 
 Key rules across all architectures:
+- **Commands vs. Queries:** State-changing slices are commands (validated, mutate state, raise domain events if used, invalidate affected cache keys). Read slices are queries (no validator, no domain events, no `SaveChangesAsync`, direct `.Select(...)` projection).
+- **Per-slice Response DTOs:** Keep response DTOs owned by their slice rather than sharing mutable DTOs across unrelated use cases.
 - Endpoints return strongly typed results: `Results<Ok<TResponse>, ProblemHttpResult>` or `Results<Created<TResponse>, ProblemHttpResult>`.
 - Request/Response types are sealed records with primary constructors.
 - Propagate `CancellationToken` through all asynchronous operations.
@@ -126,7 +132,7 @@ Always verify scaffolding with real commands:
 Every scaffolded feature must satisfy this checklist as a single complete unit before reporting completion:
 - [ ] **1. Request/Response DTOs:** Sealed records with primary constructors; no domain entity leakage.
 - [ ] **2. Validation:** Input validation (FluentValidation or DataAnnotations) handling edge cases.
-- [ ] **3. Business Logic:** Dedicated handler or use case executing domain behavior cleanly.
+- [ ] **3. Business Logic & Ownership:** Dedicated handler or use case executing domain behavior cleanly and enforcing resource ownership (current user/tenant filter or `IAuthorizationService`) for user-owned data.
 - [ ] **4. Typed Minimal API Endpoint:** Route defined with typed results (`Results<Ok<T>, ProblemHttpResult>`).
 - [ ] **5. Cancellation:** `CancellationToken` explicitly passed to all async methods and database calls.
 - [ ] **6. Persistence:** Direct EF Core query/mapping without generic repository wrappers.

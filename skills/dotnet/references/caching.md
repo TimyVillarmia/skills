@@ -95,6 +95,7 @@ await cache.RemoveAsync($"user:{id}", ct);
 await cache.RemoveByTagAsync("users", ct);
 ```
 
+- **Centralized keys & write-side invalidation:** Define keys and tags in a per-feature static helper (e.g., `OrderCacheKeys`) shared by readers and writers rather than duplicating interpolated strings. Every command that mutates cached state must invalidate the affected key or tag (`RemoveAsync` / `RemoveByTagAsync`); if you cannot enumerate the affected keys or tags, do not cache the read.
 - **Tenant-scoped keys:** In multi-tenant applications, always namespace cache keys and tags with `tenant:{tenantId}:` so one tenant never reads or evicts another tenant's cached data. See [Multi-Tenancy & Tenant Isolation](multi-tenancy.md#4-multi-tenant-cache-partitioning) for the full key pattern.
 
 ---
@@ -139,3 +140,5 @@ app.MapGet("/api/products", GetProducts)
 ❌ Calling `UseOutputCache()` before `UseCors()` or `UseAuthentication()`/`UseAuthorization()`.
 
 ❌ Caching per-user or authorized HTTP responses without varying the key by user/tenant identity.
+
+❌ Caching a read with `HybridCache` without matching key/tag invalidation in commands that mutate the underlying data.
