@@ -98,6 +98,7 @@ public sealed class Role
     public List<RolePermission> Permissions { get; init; } = [];
 }
 
+[SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "Domain join entity for RBAC role-permission mapping.")]
 public sealed class RolePermission
 {
     public Guid RoleId { get; init; }

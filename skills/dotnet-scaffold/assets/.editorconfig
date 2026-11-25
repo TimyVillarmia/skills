@@ -27,3 +27,7 @@ indent_size = 2
 # JSON / Markdown
 [*.{json,md,yml,yaml}]
 indent_size = 2
+
+# EF Core CLI-generated migrations emit constant string[] arrays
+[**/Migrations/*.cs]
+dotnet_diagnostic.CA1861.severity = none

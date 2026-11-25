@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.2] - 2026-11-25
+
+### Changed
+- `dotnet-scaffold` (v1.3):
+  - `scripts/scaffold.cs`: Allowed scaffolding into directories containing VCS/repo metadata (`.git`, `.github`, `.gitignore`, `.gitattributes`, `README.md`, `LICENSE`, `AGENTS.md`, `CLAUDE.md`, `mise.toml`), preserved existing `.gitignore`, and reported blocking project files clearly when present.
+  - `assets/Directory.Build.props`: Scoped `.NET` C# properties with `Condition="'$(MSBuildProjectExtension)' == '.csproj'"` so polyglot Aspire/React `.esproj` solutions build cleanly.
+  - `assets/.editorconfig`: Suppressed `CA1861` on EF Core CLI-generated `**/Migrations/*.cs` files for Release builds.
+  - `SKILL.md`: Added 3-way greenfield routing (backend-first `scaffold.cs` + optional `aspire init`, Aspire-native `aspire new` + **Harden Aspire Solution** checklist, and brownfield existing `.sln`/`.slnx`).
+
+### Fixed
+- `dotnet` (`references/authorization.md`, `references/testing.md`): Added `CA1711` suppression on `RolePermission` for `TreatWarningsAsErrors` Release builds and documented running `dotnet test --project` from the repo root containing `global.json` for MTP.
+
 ## [1.4.1] - 2026-11-25
 
 ### Added

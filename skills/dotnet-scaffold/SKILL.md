@@ -5,7 +5,7 @@ argument-hint: '<target: "new solution <Name>", "add test project", or "add feat
 license: MIT
 metadata:
   author: Timy
-  version: "1.2"
+  version: "1.3"
 ---
 
 # .NET Scaffolding
@@ -53,7 +53,17 @@ Skip this step when adding a project or feature to an existing repository. Befor
 - Record every decision under *Architecture & Dependency Decisions* in the Reporting Contract.
 
 ### 3. Scaffold Greenfield Solution
-For a new solution, invoke the deterministic scaffolding script rather than re-deriving configuration:
+
+Route based on the starting state:
+
+| Starting State | Action |
+|---|---|
+| **Blank or git-metadata-only repo** (backend-first, or Aspire via `aspire init`) | Run `scripts/scaffold.cs` below (tolerates `.git`, `.github`, `README.md`, `LICENSE`, `.gitignore`, `AGENTS.md`, `mise.toml` without overwriting an existing `.gitignore`). If Aspire was requested, hand off `aspire init` to the official Aspire skill/CLI afterward. |
+| **Aspire-native starter** (`aspire new` requested or already executed) | Do **not** run `scripts/scaffold.cs`. Let the Aspire skill / `aspire new` create `AppHost`, `ServiceDefaults`, API, and frontend wiring first, then run the **Harden Aspire Solution** checklist below. |
+| **Existing `.sln`/`.slnx`** (brownfield) | Skip intake and `scripts/scaffold.cs`; proceed directly to Step 4 (Test Project) or Step 5 (Feature Slice). |
+
+#### Path A: Backend-First (`scripts/scaffold.cs`)
+For a blank or git-metadata-only repo, invoke the deterministic scaffolding script rather than re-deriving configuration:
 
 ```bash
 dotnet run <path-to-skill>/scripts/scaffold.cs -- -n <SolutionName> -o <OutputDir> [--with-testcontainers] [--database postgres|sqlserver|sqlite|none]
@@ -64,11 +74,19 @@ dotnet run <path-to-skill>/scripts/scaffold.cs -- -n <SolutionName> -o <OutputDi
 The script automates:
 - Modern XML solution creation (`dotnet new sln --format slnx`).
 - Tooling configuration (`global.json` pinning SDK and Microsoft.Testing.Platform runner).
-- Central Package Management (`Directory.Packages.props`) and build policies (`Directory.Build.props`).
+- Central Package Management (`Directory.Packages.props`) and `.csproj`-scoped build policies (`Directory.Build.props`).
 - Web API and test projects referencing reusable templates in `assets/`.
 - Dual-configuration verification (`dotnet build` and `dotnet test` in Debug and Release).
 
-After scaffolding, consider adding a thin (~30-line) repo-local `AGENTS.md` / `CLAUDE.md` recording the chosen stack (auth, database, architecture, and build/test commands) so project-specific conventions travel with the repository.
+#### Path B: Harden Aspire Solution (after `aspire new`)
+When starting from `aspire new`, preserve the Aspire-generated topology (`AppHost`, `ServiceDefaults`, API, React/frontend) and layer these standards on top:
+1. Add root `Directory.Build.props` (using `Condition="'$(MSBuildProjectExtension)' == '.csproj'"` so `.esproj`/non-C# projects are unaffected), `.editorconfig`, and `global.json` pinning the SDK + `Microsoft.Testing.Platform` runner.
+2. Enable Central Package Management (`Directory.Packages.props` with `ManagePackageVersionsCentrally=true` and `CentralPackageTransitivePinningEnabled=true`) and migrate inline `Version="..."` attributes out of all `.csproj` files.
+3. Add the `MSTest.Sdk` (+ `Testcontainers` when relational DB is used) test project via Step 4.
+4. Wire Auth + permission-based RBAC (`dotnet` skill's `security.md` & `authorization.md`) and scaffold feature slices via Step 5.
+5. Verify with `dotnet build` and `dotnet test` in Debug and Release.
+
+After scaffolding (either path), consider adding a thin (~30-line) repo-local `AGENTS.md` / `CLAUDE.md` recording the chosen stack (auth, database, architecture, and build/test commands) so project-specific conventions travel with the repository.
 
 Reusable asset definitions reside in `assets/`:
 - `Directory.Build.props`: Enforces central compiler warnings and active LTS (`net10.0`).

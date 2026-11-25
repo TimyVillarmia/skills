@@ -74,10 +74,26 @@ public static class Program
         Console.WriteLine($"[INFO] Database: {database}");
         Console.WriteLine($"[INFO] Testcontainers included: {withTestcontainers}");
 
-        if (Directory.Exists(outputDir) && Directory.EnumerateFileSystemEntries(outputDir).Any())
+        HashSet<string> allowedExistingEntries = new(StringComparer.OrdinalIgnoreCase)
         {
-            Console.Error.WriteLine($"[ERROR] Output directory '{outputDir}' is not empty.");
-            return 1;
+            ".git", ".github", ".gitignore", ".gitattributes",
+            "README.md", "LICENSE", "LICENSE.md",
+            "AGENTS.md", "CLAUDE.md", "mise.toml", ".mise.toml"
+        };
+
+        if (Directory.Exists(outputDir))
+        {
+            var blockingEntries = Directory.EnumerateFileSystemEntries(outputDir)
+                .Select(Path.GetFileName)
+                .Where(name => name is not null && !allowedExistingEntries.Contains(name))
+                .ToList();
+
+            if (blockingEntries.Count > 0)
+            {
+                Console.Error.WriteLine($"[ERROR] Output directory '{outputDir}' contains existing project files: {string.Join(", ", blockingEntries)}");
+                Console.Error.WriteLine("Use existing-repo / Aspire-harden mode instead of scaffold.cs.");
+                return 1;
+            }
         }
 
         Directory.CreateDirectory(outputDir);
@@ -92,7 +108,14 @@ public static class Program
 
         // 4. Generate standard config files
         Console.WriteLine("[STEP 2/7] Generating configuration files (.gitignore, .editorconfig, nuget.config)...");
-        RunCommand("dotnet", "new gitignore", outputDir);
+        if (!File.Exists(Path.Combine(outputDir, ".gitignore")))
+        {
+            RunCommand("dotnet", "new gitignore", outputDir);
+        }
+        else
+        {
+            Console.WriteLine("[INFO] Preserving existing .gitignore.");
+        }
         RunCommand("dotnet", "new nugetconfig", outputDir);
 
         // Copy .editorconfig asset
