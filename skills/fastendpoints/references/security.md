@@ -59,7 +59,7 @@ public static class Permissions
 ```
 
 ### Scoped RBAC via Dynamic Policy Provider (Recommended)
-Avoid stuffing unbounded permission arrays into JWTs. Register the shared `PermissionPolicyProvider` (`"perm:"` prefix) + `PermissionAuthorizationHandler` backed by `IPermissionStore` + `HybridCache` (see the `dotnet` skill's `security.md` reference), and require permissions via `Policies(...)`:
+Avoid stuffing unbounded permission arrays into JWTs. Register the shared `PermissionPolicyProvider` (`"perm:"` prefix) + `PermissionAuthorizationHandler` backed by `IPermissionStore` + `HybridCache` (see the `dotnet` skill's `authorization.md` reference), and require permissions via `Policies(...)`:
 
 ```csharp
 public override void Configure()

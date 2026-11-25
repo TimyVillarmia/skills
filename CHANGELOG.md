@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2026-11-25
+
+### Added
+- `dotnet` (`references/authorization.md`): Split authorization out of `security.md` and added the Admin Role Management API contract (`GET /api/permissions`, `/api/roles`, `/api/users/{userId}/roles`), `PermissionDefinition` catalog metadata, 6 invariants (no privilege escalation, system role protection, last-admin lockout prevention, catalog validation, atomic `HybridCache` tag/key invalidation, audit logging), and Role Management regression test cases.
+
+### Changed
+- `dotnet` (`SKILL.md`, `references/security.md`, `references/review.md`), `dotnet-scaffold`, `fastendpoints`: Routed authorization and BOLA/IDOR references to `references/authorization.md`.
+
 ## [1.4.0] - 2026-11-25
 
 ### Added

@@ -55,7 +55,7 @@ Check HTTP semantics, contracts, validation, authorization, information disclosu
 
 ## Security review
 
-Check authentication, authorization (both endpoint-level policies and handler/query-level resource ownership to prevent BOLA/IDOR — see [Resource-Based Authorization](security.md#resource-based-authorization-bola--idor-prevention)), input handling, injection (`FromSqlRaw` interpolation), SSRF, deserialization (`BinaryFormatter`), weak crypto (`MD5`/`SHA1`), file handling, secrets, sensitive logging, transport security, wildcard CORS with credentials, rate limiting, endpoints missing explicit auth/`AllowAnonymous` intent, and tenant isolation where relevant.
+Check authentication, authorization (both endpoint-level permissions and handler/query-level resource ownership to prevent BOLA/IDOR — see [Resource-Based Authorization](authorization.md#resource-based-authorization-bola--idor-prevention)), input handling, injection (`FromSqlRaw` interpolation), SSRF, deserialization (`BinaryFormatter`), weak crypto (`MD5`/`SHA1`), file handling, secrets, sensitive logging, transport security, wildcard CORS with credentials, rate limiting, endpoints missing explicit auth/`AllowAnonymous` intent, and tenant isolation where relevant.
 
 Run `dotnet package list --vulnerable --include-transitive` when reviewing dependencies. Skip or mark `INFO` for test-fixture and `appsettings.Development.json` dev-only values rather than inflating them to High/Critical, and note that static review does not replace runtime or penetration testing.
 
