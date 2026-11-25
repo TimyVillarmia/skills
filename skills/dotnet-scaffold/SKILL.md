@@ -49,7 +49,7 @@ Skip this step when adding a project or feature to an existing repository. Befor
 | **Extras** | Off unless needed | Confirm: Testcontainers (when a DB is used) · messaging/outbox (Native EF Core Outbox or `WolverineFx`) · Aspire AppHost |
 
 - Do not scaffold until auth is answered (an explicit "no auth yet" counts). If running headless or the user cannot be asked, stop and report the unanswered decisions instead of assuming defaults.
-- After scaffolding, wire the chosen auth using the `dotnet` skill's security reference (fallback `RequireAuthenticatedUser()` policy, named policies, `MapInboundClaims = false`), and the chosen database using its EF Core reference.
+- After scaffolding, wire the chosen auth using the `dotnet` skill's security reference (fallback `RequireAuthenticatedUser()` policy, permission-based RBAC via `RequirePermission(...)`, `MapInboundClaims = false`), and the chosen database using its EF Core reference.
 - Record every decision under *Architecture & Dependency Decisions* in the Reporting Contract.
 
 ### 3. Scaffold Greenfield Solution

@@ -48,7 +48,7 @@ Choose authentication from the actual client and deployment model:
 - **Keep validation strict:** Never disable `ValidateIssuer`, `ValidateAudience`, `ValidateLifetime`, or `ValidateIssuerSigningKey` in production. Keep a small `TokenValidationParameters.ClockSkew` (e.g., 30–60 seconds rather than `TimeSpan.Zero`) to tolerate minor NTP drift across distributed nodes.
 - **Signing keys:** Prefer an external IdP or asymmetric signing (`RS256`/`ES256` via JWKS) over self-issued `HS256` tokens with a shared symmetric secret across services.
 - **Current user abstraction:** Read claims through a small scoped `ICurrentUser` wrapper over `ClaimsPrincipal` / `IHttpContextAccessor` rather than scattering raw `FindFirst(...)` lookups. Never inject `IConfiguration` into token/auth services; bind validated `IOptions<T>` instead.
-- **Policy-based authorization:** Prefer named policies (`RequireAuthorization("BillingAdmin")`) over scattered `Roles = "..."` magic strings.
+- **Permission-based authorization:** Check permissions via `.RequirePermission(...)` / permission-backed policies rather than scattered `Roles = "..."` or `IsInRole(...)` magic strings.
 
 Validate tokens using established framework components. Never manually implement JWT parsing/signature validation, key rotation, OAuth/OIDC protocol behavior, password hashing, or cryptography.
 
@@ -83,6 +83,16 @@ Authentication answers **who is the caller**. Authorization answers **what the c
 
 ## Authorization
 
+### Choosing an Authorization Model
+
+Standardize on a two-tier decision rule for greenfield projects:
+
+| Model | When to Use |
+|---|---|
+| **Tenant-scoped, permission-based RBAC + resource ownership** *(Default)* | 80–90% of SaaS, B2B, and CRUD APIs. Roles group permissions; code checks permissions and resource policies. |
+| **ReBAC** (OpenFGA / SpiceDB) | Only when the domain needs nested inheritance trees (folders → docs) or arbitrary user-to-user sharing graphs. |
+| **External PBAC** (OPA / Cedar) | Polyglot microservices or regulated enterprises requiring decoupled, centrally audited policy-as-code. |
+
 ### Default-Deny Authorization Policy
 Enforce default-deny across the entire API by configuring `FallbackPolicy`. Endpoints that should be public (such as `/healthz/live`, `/healthz/ready`, or development OpenAPI/Scalar routes) must explicitly declare `.AllowAnonymous()`:
 
@@ -96,8 +106,130 @@ builder.Services.AddAuthorization(options =>
 });
 ```
 
+### Standard Permission-Based RBAC (Greenfield Default)
+
+Follow these six invariants on every greenfield project so authorization stays consistent across services:
+
+1. **Check permissions, never role names:** Endpoints and handlers check permissions (`.RequirePermission(Permissions.InvoicesApprove)`), never `RequireRole("Admin")` or `User.IsInRole(...)`. Roles exist only as human-managed bundles of permissions.
+2. **Canonical permission grammar:** Use lowercase `<resource>:<action>` keys (e.g., `invoices:read`, `invoices:create`, `invoices:approve`, `members:invite`), with an optional `:own` / `:any` suffix only when distinguishing self vs. tenant-wide access. Stick to a consistent verb vocabulary (`read`, `create`, `update`, `delete`, `manage`, plus explicit domain verbs) defined as constants in code.
+3. **Scoped role assignments (never a `Role` column on `Users`):** Model authorization with four concepts: `Role`, code-defined `Permissions`, `RolePermission`, and `RoleAssignment` bound to a scope (`("tenant", tenantId)` or `("global", null)`).
+4. **One centralized AuthZ boundary:** Use a dynamic `IAuthorizationPolicyProvider` + `PermissionAuthorizationHandler` for endpoint-level permission checks, and `IAuthorizationService` for contextual/ownership checks. Never invent fake roles (e.g., `InvoiceOwnerEditor`) to encode resource state or ownership.
+5. **Cache permission lookups, don't bloat JWTs:** Resolve effective permissions per `(userId, scopeId)` through `HybridCache` using tenant-namespaced keys (`tenant:{tenantId}:perms:{userId}`, see [Multi-Tenant Cache Partitioning](multi-tenancy.md#4-multi-tenant-cache-partitioning)) and invalidate on role or assignment changes. Avoid embedding unbounded permission arrays in JWTs (token bloat + delayed revocation).
+6. **Verify with a 4-case AuthZ test matrix:** For every protected resource, test: unauthenticated (`401`), wrong tenant (`403`/`404`), authenticated without permission (`403`), and authenticated with permission (`200`/`201`/`204`).
+
+#### Canonical Permission Catalog & EF Core Schema
+
+```csharp
+public static class Permissions
+{
+    public const string InvoicesRead = "invoices:read";
+    public const string InvoicesCreate = "invoices:create";
+    public const string InvoicesApprove = "invoices:approve";
+    public const string MembersInvite = "members:invite";
+}
+
+public sealed class Role
+{
+    public Guid Id { get; init; } = Guid.CreateVersion7();
+    public required string Slug { get; set; }        // e.g., "billing-admin"
+    public required string ScopeType { get; set; }   // "global" | "tenant"
+    public bool IsSystem { get; init; }
+    public List<RolePermission> Permissions { get; init; } = [];
+}
+
+public sealed class RolePermission
+{
+    public Guid RoleId { get; init; }
+    public required string PermissionKey { get; init; } // FK/validated against Permissions catalog
+}
+
+public sealed class RoleAssignment
+{
+    public Guid Id { get; init; } = Guid.CreateVersion7();
+    public Guid UserId { get; init; }
+    public Guid RoleId { get; init; }
+    public required string ScopeType { get; init; }  // "global" | "tenant"
+    public Guid? ScopeId { get; init; }              // null for global; TenantId for tenant
+}
+```
+
+#### Dynamic Permission Policy Provider & Endpoint Extension
+
+Use a single `IAuthorizationPolicyProvider` with a `"perm:"` prefix so every permission works automatically without manually registering policies in `Program.cs`:
+
+```csharp
+public sealed record PermissionRequirement(string Permission) : IAuthorizationRequirement;
+
+public sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> options)
+    : DefaultAuthorizationPolicyProvider(options)
+{
+    public const string Prefix = "perm:";
+
+    public override Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+    {
+        if (policyName.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            var permission = policyName[Prefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(permission))
+                .Build();
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+        }
+
+        return base.GetPolicyAsync(policyName);
+    }
+}
+
+public interface IPermissionStore
+{
+    ValueTask<bool> HasPermissionAsync(
+        Guid userId,
+        Guid? scopeId,
+        string permission,
+        CancellationToken ct = default);
+}
+
+public sealed class PermissionAuthorizationHandler(
+    IPermissionStore permissionStore,
+    ITenantContext tenantContext) : AuthorizationHandler<PermissionRequirement>
+{
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        var sub = context.User.FindFirst("sub")?.Value
+               ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(sub, out var userId))
+            return;
+
+        Guid? scopeId = tenantContext.IsResolved ? tenantContext.TenantId : null;
+        if (await permissionStore.HasPermissionAsync(userId, scopeId, requirement.Permission))
+        {
+            context.Succeed(requirement);
+        }
+    }
+}
+
+public static class PermissionEndpointExtensions
+{
+    public static TBuilder RequirePermission<TBuilder>(this TBuilder builder, string permission)
+        where TBuilder : IEndpointConventionBuilder =>
+        builder.RequireAuthorization($"{PermissionPolicyProvider.Prefix}{permission}");
+}
+
+// DI registration:
+// builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+// builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+// Endpoint usage:
+// invoices.MapPost("/{id:guid}/approve", ApproveInvoice)
+//     .RequirePermission(Permissions.InvoicesApprove);
+```
+
 ### Resource-Based Authorization (BOLA / IDOR Prevention)
-Role or claim checks confirm *who* the caller is, but not *whether* they own or have access to a specific record. Broken Object-Level Authorization (BOLA/IDOR) occurs when code queries an entity by ID without checking ownership.
+Endpoint permission checks confirm *capability*, not *whether* the caller owns or may act on a specific record (or whether its state permits the action). Broken Object-Level Authorization (BOLA/IDOR) occurs when code queries an entity by ID without checking ownership or contextual rules.
 
 Enforce access at the resource boundary using `IAuthorizationService`:
 
@@ -332,6 +464,8 @@ Review direct and transitive dependency vulnerabilities as normal maintenance.
 
 ❌ Authorization based only on UI visibility or client-supplied roles/tenant IDs.
 
+❌ Checking role names in endpoints or business logic (`IsInRole("Admin")`, `RequireRole("Manager")`), storing a flat `Role` column on `Users`, or embedding unbounded permission lists in JWTs.
+
 ❌ Disabling certificate validation to “fix” local development and carrying that change into production.
 
 ❌ Logging access tokens, passwords, secrets, or sensitive personal data.
@@ -351,7 +485,7 @@ For meaningful security-sensitive features, identify assets, trust boundaries, a
 ## Security checklist
 
 - Authentication is appropriate and correctly validated.
-- Authorization protects the actual resource/action.
+- Authorization checks permissions (not role names) with scoped role assignments, protects the actual resource/action, and is verified by the 4-case AuthZ test matrix (`401`, cross-tenant, missing permission `403`, allowed).
 - Tenant boundaries are enforced when applicable.
 - Inputs are validated and constrained.
 - Injection paths are safely handled.

@@ -118,7 +118,7 @@ public sealed class CreateOrderEndpoint : Endpoint<CreateOrderRequest, CreateOrd
     public override void Configure()
     {
         Post("/orders");
-        AllowAnonymous(); // Or Policies("RequireAdmin"), Roles("Manager"), etc.
+        AllowAnonymous(); // Or Policies($"perm:{Permissions.OrdersCreate}") for protected endpoints
         Summary(s =>
         {
             s.Summary = "Creates a new customer order";

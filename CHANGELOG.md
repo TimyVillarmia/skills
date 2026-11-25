@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0] - 2026-11-25
+
+### Added
+- `dotnet` (`SKILL.md`, `references/security.md`): Standardized greenfield authorization on tenant-scoped, permission-based RBAC (`<resource>:<action>` grammar, scoped `Role`/`RolePermission`/`RoleAssignment` schema, dynamic `PermissionPolicyProvider` + `PermissionAuthorizationHandler` + `.RequirePermission(...)`, `HybridCache` permission caching, ReBAC/PBAC escalation criteria, and 4-case AuthZ test matrix).
+
+### Changed
+- `dotnet-scaffold` (`SKILL.md`): Aligned post-scaffold auth wiring to permission-based RBAC via `RequirePermission(...)`.
+- `fastendpoints` (`SKILL.md`, `references/security.md`): Aligned endpoint authorization to lowercase `<resource>:<action>` permissions via `PermissionPolicyProvider` (`Policies($"perm:...")`), discouraged hard-coded `Roles(...)` in greenfield endpoints, and added `IAuthorizationService` resource-ownership guidance.
+
 ## [1.3.1] - 2026-11-19
 
 ### Changed

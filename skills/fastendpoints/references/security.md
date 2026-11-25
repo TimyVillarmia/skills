@@ -44,48 +44,63 @@ app.Run();
 
 ---
 
-## 2. Role-Based & Policy-Based Authorization
+## 2. Permission-Based Authorization (Default)
 
-Enforce access rules inside `Configure()`:
+Check **permissions**, never role names, using the canonical lowercase `<resource>:<action>` grammar defined as constants in code:
+
+```csharp
+public static class Permissions
+{
+    public const string OrdersRead = "orders:read";
+    public const string OrdersCreate = "orders:create";
+    public const string OrdersDelete = "orders:delete";
+    public const string InvoicesApprove = "invoices:approve";
+}
+```
+
+### Scoped RBAC via Dynamic Policy Provider (Recommended)
+Avoid stuffing unbounded permission arrays into JWTs. Register the shared `PermissionPolicyProvider` (`"perm:"` prefix) + `PermissionAuthorizationHandler` backed by `IPermissionStore` + `HybridCache` (see the `dotnet` skill's `security.md` reference), and require permissions via `Policies(...)`:
 
 ```csharp
 public override void Configure()
 {
-    Delete("/users/{id}");
+    Post("/orders");
+    Policies($"perm:{Permissions.OrdersCreate}");
+}
+```
 
-    // Require one or more roles
-    Roles("Admin", "SuperUser");
+### Token-Claim Permissions (Small/Static Permission Sets Only)
+If your IdP already emits bounded `permissions` claims in the access token, FastEndpoints' built-in `Permissions(...)` helper matches those claims directly:
 
-    // Require specific ASP.NET Core authorization policies
-    Policies("ElevatedAccessPolicy", "TenantAdmin");
+```csharp
+public override void Configure()
+{
+    Post("/orders");
+    Permissions(Permissions.OrdersCreate);
+}
+```
+
+---
+
+## 3. Policies, Auth Schemes & Resource Ownership
+
+Enforce policies and authentication schemes inside `Configure()`, and enforce resource ownership (BOLA/IDOR prevention) inside `HandleAsync()` using `IAuthorizationService`:
+
+```csharp
+public override void Configure()
+{
+    Delete("/orders/{id:guid}");
+
+    // Require permission-backed or named ASP.NET Core authorization policies
+    Policies($"perm:{Permissions.OrdersDelete}");
 
     // Specify authentication schemes if using multiple providers (e.g. Bearer, Cookie)
     AuthSchemes("Bearer");
 }
 ```
 
----
-
-## 3. Permissions-Based Authorization
-
-FastEndpoints provides fine-grained permission support. Define permissions as constants or enums:
-
-```csharp
-public static class Permissions
-{
-    public const string OrdersCreate = "Orders:Create";
-    public const string OrdersDelete = "Orders:Delete";
-    public const string OrdersRead = "Orders:Read";
-}
-
-// In endpoint:
-public override void Configure()
-{
-    Post("/orders");
-    // User must have this permission claim in their token
-    Permissions(Permissions.OrdersCreate);
-}
-```
+- Avoid `Roles("Admin", "Manager")` in greenfield endpoints; roles should only group permissions in data, never be hard-coded in endpoints (preserve `Roles(...)` only in brownfield repos that already rely on it).
+- For record-level ownership or state checks, load the entity in `HandleAsync()` and call `await authService.AuthorizeAsync(User, order, Operations.Delete)` — return `SendForbiddenAsync(ct)` when `!authResult.Succeeded`.
 
 ---
 
