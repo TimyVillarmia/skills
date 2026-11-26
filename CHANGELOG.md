@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.3] - 2026-11-26
+
+### Added
+- `dotnet` (`SKILL.md`): Added `Live docs lookup` section routing version-specific `.NET 10+` / `C# 14` / `EF Core` / `ASP.NET Core` / Azure API queries to `microsoft-learn` MCP (`microsoft_docs_search`, `microsoft_code_sample_search`, `microsoft_docs_fetch`) with `npx @microsoft/learn-cli` (`mslearn`) fallback.
+
+### Changed
+- `README.md`: Updated `dotnet` reference guide count to `18`, added missing `authorization.md` table entry, and documented optional companion tools (Microsoft Learn MCP / `mslearn` CLI and Aspire).
+- `dotnet` (`references/csharp.md`, `references/configuration.md`, `references/hosted-services.md`, `references/api.md`): Pruned generic textbook prose, static URL lists, and redundant boilerplate while preserving all `.NET 10` / `C# 14` guardrails, footguns, and cross-file anchors.
+
 ## [1.4.2] - 2026-11-25
 
 ### Changed

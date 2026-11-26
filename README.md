@@ -51,7 +51,7 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 
 | Skill | Purpose | Contents |
 |---|---|---|
-| [`dotnet`](skills/dotnet/SKILL.md) | Engineering standards and task routing for .NET 10 LTS | 17 reference guides |
+| [`dotnet`](skills/dotnet/SKILL.md) | Engineering standards and task routing for .NET 10 LTS | 18 reference guides |
 | [`fastendpoints`](skills/fastendpoints/SKILL.md) | REPR endpoint architecture for ASP.NET Core APIs | 5 reference guides |
 | [`dotnet-scaffold`](skills/dotnet-scaffold/SKILL.md) | Project generation for `.slnx` solutions, tests, and vertical slices | C# runner and project templates |
 
@@ -74,11 +74,9 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 | `efcore.md` | EF Core query tuning, split queries, complex types, global query filters, audit interceptors, and `Guid.CreateVersion7()` |
 | `performance.md` | Allocation tracking, `Span<T>` and `Memory<T>`, and BenchmarkDotNet rules |
 | `security.md` | Identity and passkeys, `JsonWebTokenHandler`, default-deny policies, `AddRateLimiter`, CORS, and webhook HMAC verification |
+| `authorization.md` | Tenant-scoped permission RBAC (`<resource>:<action>`), `PermissionPolicyProvider`, Role Management API invariants, BOLA/IDOR, and ReBAC escalation |
 | `testing.md` | `MSTest.Sdk` on Microsoft.Testing.Platform, xUnit v3, Testcontainers with Respawn, `FakeTimeProvider`, and OpenAPI contract tests |
 | `review.md` | Code review checklist with structured findings (severity, location, finding, evidence, fix) |
-
-> [!TIP]
-> Pair `dotnet` with the official [Aspire agent skills](https://github.com/microsoft/aspire). `dotnet` covers general .NET engineering; Aspire owns local orchestration, AppHost wiring, and deployment. `dotnet` works standalone without Aspire.
 
 ### 2. `fastendpoints`
 
@@ -98,6 +96,15 @@ git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal
 | `scripts/scaffold.cs` | Cross-platform C# runner (`dotnet run scaffold.cs`) targeting .NET 10 LTS, with `--database` selecting the Testcontainers module |
 | `assets/` | Central Package Management (`Directory.Packages.props`), `Directory.Build.props`, `global.json`, `.editorconfig`, and `SliceTemplate` |
 | Solution layout | `.slnx` solution format with Debug and Release build validation |
+
+---
+
+## Optional companion tools
+
+`dotnet-skills` is a pure skills bundle with zero MCP or CLI dependencies and works standalone. For live docs lookup and Aspire orchestration, you can optionally enable:
+
+- **Microsoft Learn MCP:** Connect `https://learn.microsoft.com/api/mcp` (or install the official Microsoft Learn MCP plugin). When unavailable, `dotnet` automatically falls back to `npx @microsoft/learn-cli`.
+- **Aspire skills & MCP:** Pair with the official [Aspire agent skills](https://github.com/microsoft/aspire) or `aspire agent mcp` when working on Aspire AppHost wiring, local orchestration, or deployment.
 
 ---
 

@@ -12,108 +12,44 @@ Use this reference when building background workers, scheduled jobs, queue proce
 | **Graceful Shutdown** | Pass the `stoppingToken` from `ExecuteAsync` to every async call and configure `ShutdownTimeout` | Swallow `OperationCanceledException` and keep executing work after cancellation | Worker completes current unit of work or aborts within configured shutdown window |
 | **Transient Retries** | Use exponential backoff with jitter and a bounded maximum retry count | Retry in a tight loop without delay or retry non-transient domain errors indefinitely | Failed iterations log error with backoff delay, then retry or route to dead-letter queue |
 
----
+## Scoped Lifetime & `PeriodicTimer` Pattern
 
-## Scoped Dependency Lifetime Pattern
-
-`BackgroundService` is registered as a Singleton. To consume scoped services (like EF Core `DbContext` or use-case handlers), create an explicit scope for each processing cycle:
+`BackgroundService` is a Singleton. Create an explicit `AsyncServiceScope` per iteration and pass `TimeProvider` to `PeriodicTimer` for deterministic testing:
 
 ```csharp
-public sealed class OrderProcessingWorker(
-    IServiceScopeFactory scopeFactory,
-    TimeProvider timeProvider,
-    ILogger<OrderProcessingWorker> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10), timeProvider);
+using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10), timeProvider);
 
-        while (!stoppingToken.IsCancellationRequested &&
-               await timer.WaitForNextTickAsync(stoppingToken))
-        {
-            try
-            {
-                // Create an isolated scope for the iteration
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var handler = scope.ServiceProvider.GetRequiredService<ProcessPendingOrdersHandler>();
-                await handler.ExecuteAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                logger.LogInformation("Order processing worker is stopping gracefully.");
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unhandled error during order processing iteration.");
-            }
-        }
+while (!stoppingToken.IsCancellationRequested &&
+       await timer.WaitForNextTickAsync(stoppingToken))
+{
+    try
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var handler = scope.ServiceProvider.GetRequiredService<ProcessPendingOrdersHandler>();
+        await handler.ExecuteAsync(stoppingToken);
     }
+    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+    catch (Exception ex) { logger.LogError(ex, "Unhandled error during background iteration."); }
 }
 ```
 
----
+## Bounded Channels (Volatile In-Process Work)
 
-## Producer-Consumer with Bounded Channels
-
-Use `System.Threading.Channels.Channel<T>` to buffer volatile in-process work and enforce backpressure (for durable work that must survive restarts or route to a DLQ, use the outbox/broker patterns in [messaging.md](messaging.md); wrap `processor.ProcessAsync` in a `ResiliencePipeline` when transient retries are needed):
+Use bounded `Channel<T>` to enforce backpressure for volatile in-process work (for durable work that must survive restarts or route to a DLQ, use the outbox/broker patterns in [messaging.md](messaging.md); wrap transient processing failures in a `ResiliencePipeline`):
 
 ```csharp
-public sealed class WorkQueue<T>
-{
-    private readonly Channel<T> _channel = Channel.CreateBounded<T>(new BoundedChannelOptions(1000)
+private readonly Channel<WorkItem> _channel = Channel.CreateBounded<WorkItem>(
+    new BoundedChannelOptions(1000)
     {
         FullMode = BoundedChannelFullMode.Wait,
         SingleReader = true,
         SingleWriter = false
     });
-
-    public ValueTask EnqueueAsync(T item, CancellationToken ct = default) =>
-        _channel.Writer.WriteAsync(item, ct);
-
-    public IAsyncEnumerable<T> ReadAllAsync(CancellationToken ct = default) =>
-        _channel.Reader.ReadAllAsync(ct);
-}
 ```
-
-### Channel Consumer Worker
-
-This consumer is best-effort and discards failed items after logging; wrap processing in a `ResiliencePipeline` or use a durable queue if failed items must be retried.
-
-```csharp
-public sealed class QueueProcessorWorker(
-    WorkQueue<WorkItem> queue,
-    IServiceScopeFactory scopeFactory,
-    ILogger<QueueProcessorWorker> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var item in queue.ReadAllAsync(stoppingToken))
-        {
-            try
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var processor = scope.ServiceProvider.GetRequiredService<IItemProcessor>();
-                await processor.ProcessAsync(item, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed processing queue item {ItemId}.", item.Id);
-            }
-        }
-    }
-}
-```
-
----
 
 ## Graceful Shutdown Configuration
 
-By default, .NET allows 30 seconds for hosted services to stop after SIGTERM. Adjust the shutdown timeout to accommodate in-flight batch operations:
+By default, .NET allows 30 seconds for hosted services to stop after `SIGTERM`. Configure `HostOptions.ShutdownTimeout` to match in-flight batch bounds:
 
 ```csharp
 builder.Services.Configure<HostOptions>(options =>
@@ -122,7 +58,6 @@ builder.Services.Configure<HostOptions>(options =>
 });
 ```
 
-Key rules:
-- Always check `stoppingToken.IsCancellationRequested` before starting a new batch.
-- Pass `stoppingToken` to all async I/O operations (`ReadAsync`, `SaveChangesAsync`, HTTP calls).
-- Catch `OperationCanceledException` explicitly; do not treat normal cancellation as an unhandled error.
+- Check `stoppingToken.IsCancellationRequested` before starting a new batch.
+- Pass `stoppingToken` to all async I/O (`ReadAsync`, `SaveChangesAsync`, HTTP calls).
+- Handle `OperationCanceledException` as expected shutdown when `stoppingToken.IsCancellationRequested` is true rather than logging normal cancellation as an unhandled error.

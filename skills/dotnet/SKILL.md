@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: "Use when building, modifying, debugging, or reviewing .NET 10 / C# 14 backend code or .cs, .csproj, .sln, and .slnx files—including Minimal APIs, OpenAPI, Native AOT, EF Core, zero-downtime migrations, BackgroundService/channels, OpenTelemetry, Testcontainers/WebApplicationFactory, WolverineFx/MassTransit/outbox, multi-tenancy, concurrency, auth/security, rate limiting (AddRateLimiter), HybridCache, ResiliencePipeline, IOptions/ValidateOnStart, webhooks, performance, or NuGet license choices. DO NOT USE FOR: Aspire AppHost/CLI orchestration (use the official Aspire skill when available)."
+description: "Build, modify, debug, or review .NET 10 / C# 14 backend code (.cs, .csproj, .sln, .slnx): Minimal APIs, OpenAPI, Native AOT, EF Core, zero-downtime migrations, BackgroundService, OpenTelemetry, Testcontainers, outbox/messaging, multi-tenancy, concurrency, auth/RBAC, HybridCache, resilience, IOptions, performance, and NuGet licenses. DO NOT USE FOR: Aspire AppHost/CLI orchestration."
 license: MIT
 metadata:
   author: Timy
@@ -49,6 +49,16 @@ Read only the smallest combination of references covering the task:
 | HTTP resilience, `ResiliencePipeline`, `UseRequestTimeouts`, retries, timeouts, `Retry-After` | `references/resilience.md` |
 | Reviewing a diff, PR, completed change, or .NET 10 upgrade/breaking changes | `references/review.md` |
 | .NET Aspire orchestration or AppHost wiring | Official Aspire skill when available (otherwise follow repo conventions + official Aspire docs) |
+
+## Live docs lookup
+
+Local references hold opinions, invariants, and footguns—not full Microsoft SDK docs. For version-specific `.NET 10+`, `C# 14`, `EF Core`, `ASP.NET Core`, or Azure APIs, query live official docs rather than guessing from memory:
+
+| Need | Microsoft Learn MCP (preferred) | CLI fallback (`npx @microsoft/learn-cli`) |
+|---|---|---|
+| Concepts / API lookup | `microsoft_docs_search(query: "...")` | `mslearn search "..."` |
+| C# code examples | `microsoft_code_sample_search(query: "...", language: "csharp")` | `mslearn code-search "..." --language csharp` |
+| Full doc page | `microsoft_docs_fetch(url: "...")` | `mslearn fetch "..."` |
 
 ## Non-negotiable guardrails
 
