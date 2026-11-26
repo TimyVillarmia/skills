@@ -6,3 +6,5 @@ bin/
 obj/
 .serena/
 
+.agents
+skills-lock.json

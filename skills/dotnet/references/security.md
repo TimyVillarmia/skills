@@ -40,6 +40,7 @@ Choose authentication from the actual client and deployment model:
 - **Cookies (`HttpOnly`, `Secure`, `SameSite`):** Browser-oriented sessions, BFFs, and interactive Blazor apps.
 - **OpenID Connect / OAuth 2.0:** Delegated or federated identity with an external IdP.
 - **ASP.NET Core Identity:** Application-managed user stores (including built-in WebAuthn / passkey support in .NET 10). Never build custom password hashing or credential tables.
+  - When wiring Controller-based Identity with `AddIdentityCore<T>()`, chain `.AddSignInManager()` if controllers inject `SignInManager<T>` (otherwise DI throws at runtime).
 - **API keys:** Only when their operational/security properties are acceptable (hash stored keys like passwords, scope permissions, support rotation).
 
 ### Token validation and identity rules

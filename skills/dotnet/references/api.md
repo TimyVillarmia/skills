@@ -4,7 +4,9 @@ Use this reference when a .NET application exposes or consumes HTTP APIs. For fr
 
 ## API shape & Minimal APIs
 
-Preserve the API style already established in brownfield repos. Project EF persistence entities to explicit DTOs rather than exposing them directly when doing so couples the contract to storage concerns or risks accidental data exposure. Map HTTP status codes to externally observable HTTP semantics rather than internal exception type names.
+Preserve the API style already established in brownfield repos: scan for `ControllerBase`/`[ApiController]` vs `MapGet`/`MapPost`, continue with the existing style, default to Minimal APIs on greenfield unless Controllers are requested, and keep one style per project (do not mix Controllers and Minimal APIs).
+
+Project EF persistence entities to explicit `sealed record` DTOs (`CA1852` + immutability) rather than exposing entities directly, serialize API enums as strings (`JsonStringEnumConverter`, or `JsonStringEnumConverter<TEnum>` for Native AOT) unless integer serialization is requested, and map HTTP status codes to externally observable HTTP semantics rather than internal exception type names.
 
 For .NET 10 / C# 14 Minimal APIs:
 - **`TypedResults` (`Results<Ok<T>, NotFound, ...>`):** Default for endpoints with 2–3 direct outcomes; the declared return type drives OpenAPI schema inference and direct delegate unit testing.
@@ -32,6 +34,15 @@ public static class EndpointRegistration
 // Program.cs
 app.MapApiEndpoints();
 ```
+
+## Controllers (brownfield or when requested)
+
+For Controller-based APIs (query `microsoft_docs_search(query="ASP.NET Core Web API controllers .NET 10")` for framework details):
+- **Action signatures:** Annotate with `[ApiController]`, return `ActionResult<T>` (or `IActionResult`) with explicit `[ProducesResponseType]` metadata, and forward `CancellationToken`.
+- **Validation & versioning:** Rely on `[ApiController]` automatic DataAnnotations validation (skip Minimal-API-only `AddValidation()`), and use `Asp.Versioning.Mvc` + `Asp.Versioning.Mvc.ApiExplorer`.
+  - **Positional `record` DTOs in MVC:** Place DataAnnotations directly on primary constructor parameters (`[Required] string Email`), not `[property: Required]`—MVC's `ObjectModelValidator` throws `InvalidOperationException` at runtime if validation attributes target the synthesized property instead of the constructor parameter.
+- **Auth & antiforgery:** Enforce permissions with `[Authorize(Policy = "perm:<resource>:<action>")]` (or a `[RequirePermission]` `AuthorizeAttribute` subclass), and use `[ValidateAntiForgeryToken]` / `[IgnoreAntiforgeryToken]` on MVC actions.
+- **.NET 10 & Native AOT:** Avoid `IActionContextAccessor` (removed/obsolete in .NET 10; use `HttpContext` or `LinkGenerator`), and note that MVC Controllers are **not Native AOT-compatible** (`<PublishAot>true</PublishAot>` requires Minimal APIs).
 
 ## ProblemDetails and Error Handling Pipeline
 
@@ -117,9 +128,9 @@ Prefer additive-only DTO changes. When retiring an endpoint or version, emit RFC
 For .NET 10, enable built-in Minimal API source-generated DataAnnotations validation via `builder.Services.AddValidation()` (short-circuits invalid requests with `400 Bad Request` `ProblemDetails`; opt out per endpoint with `.DisableValidation()`). Preserve FluentValidation if the repo already uses it.
 
 **`.NET 10` `AddValidation()` gotchas:**
-- **Separate DTO assemblies:** Source generation only scans the assembly calling `AddValidation()`. DTOs in separate `Contracts`/`Application` projects silently skip validation unless marked with `[assembly: ValidatableType(typeof(...))]` or registered from that assembly.
+- **Separate DTO assemblies:** Source generation only scans the assembly calling `AddValidation()`. In separate `Contracts`/`Application` libraries, annotate root DTOs with `[ValidatableType]` (`Microsoft.Extensions.Validation`, `AttributeTargets.Class`) and expose/call `services.AddValidation()` from that assembly.
 - **Value types:** `[Required]` on non-nullable value types (`int`, `Guid`) still allows default `0` / `Guid.Empty`; use nullable `int?` + `[Required]`, `[Range]`, or `[JsonRequired]`.
-- **JSON strictness & SSE (.NET 10):** Set `JsonSerializerOptions.AllowDuplicateProperties = false` on security-sensitive inputs to prevent JSON property smuggling, and use native `TypedResults.ServerSentEvents(...)` for SSE streams instead of third-party packages.
+- **JSON strictness & SSE (.NET 10):** Preserve existing JSON deserialization leniency on brownfield APIs unless already strict or requested (tightening case sensitivity, `UnmappedMemberHandling.Disallow`, or number reading can break existing clients). On greenfield or security-sensitive inputs, set `JsonSerializerOptions.AllowDuplicateProperties = false` to prevent JSON property smuggling, and use native `TypedResults.ServerSentEvents(...)` for SSE streams.
 
 Enforce validation and authorization server-side; treat client-side validation as UX only.
 
@@ -136,7 +147,9 @@ Enforce validation and authorization server-side; treat client-side validation a
 ## OpenAPI and Interactive Documentation
 
 - **Built-in OpenAPI (`Microsoft.AspNetCore.OpenApi`):** Use `builder.Services.AddOpenApi()` and `app.MapOpenApi()` (not deprecated `.WithOpenApi()` / `ASPDEPR002`).
+- **XML doc comments (.NET 10):** Enable `<GenerateDocumentationFile>true</GenerateDocumentationFile>` and add `<summary>` XML comments to API DTOs so descriptions flow into `/openapi/v1.json` automatically without noisy `.WithDescription(...)` chains.
 - **Untyped `IResult` endpoints and OpenAPI schemas:** When an endpoint returns `IResult` (instead of `Results<...>` / `TypedResults`), `Microsoft.AspNetCore.OpenApi` cannot infer response schemas and emits empty/`void` responses in `/openapi/v1.json`. Always attach explicit `.Produces<T>(statusCode)`, `.Produces(statusCode, contentType: "text/csv")`, or `.ProducesProblem(statusCode)` metadata so generated clients (Orval, Kiota, NSwag) receive accurate types.
+- **`.http` smoke tests (optional):** When adding endpoints, pair them with a `.http` file matching the `launchSettings.json` port (covering happy and error paths).
 - **Scalar (`Scalar.AspNetCore`):** Prefer Scalar over legacy Swashbuckle in Development:
   ```csharp
   if (app.Environment.IsDevelopment())

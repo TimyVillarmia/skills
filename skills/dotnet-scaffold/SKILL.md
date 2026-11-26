@@ -124,14 +124,14 @@ src/<App>.Domain/Entities/<Entity>.cs                           // Domain entity
 src/<App>.Application/<Area>/<Action>/<Action>Command.cs       // Request DTO & Validator (FluentValidation)
 src/<App>.Application/<Area>/<Action>/<Action>Handler.cs       // Use-case logic (injects DbContext or domain service)
 src/<App>.Infrastructure/Persistence/Configurations/<Entity>Configuration.cs  // EF Core mapping
-src/<App>.Api/Endpoints/<Area>/<Action>Endpoint.cs             // Minimal API route mapping with TypedResults
+src/<App>.Api/Endpoints/<Area>/<Action>Endpoint.cs             // Minimal API route mapping with TypedResults (or Controllers/<Area>Controller.cs in Controller repos)
 tests/<App>.Tests/Integration/<Area>/<Action>Tests.cs          // WebApplicationFactory + Testcontainers test
 ```
 
 Key rules across all architectures:
 - **Commands vs. Queries:** State-changing slices are commands (validated, mutate state, raise domain events if used, invalidate affected cache keys). Read slices are queries (no validator, no domain events, no `SaveChangesAsync`, direct `.Select(...)` projection).
 - **Per-slice Response DTOs:** Keep response DTOs owned by their slice rather than sharing mutable DTOs across unrelated use cases.
-- Endpoints return strongly typed results: `Results<Ok<TResponse>, ProblemHttpResult>` or `Results<Created<TResponse>, ProblemHttpResult>`.
+- Endpoints return strongly typed results: `Results<Ok<TResponse>, ProblemHttpResult>` or `Results<Created<TResponse>, ProblemHttpResult>` (or `ActionResult<TResponse>` in existing Controller-based repos).
 - Request/Response types are sealed records with primary constructors.
 - Propagate `CancellationToken` through all asynchronous operations.
 - Inject `DbContext` or domain handlers directly; never wrap EF Core in generic repository layers.
@@ -151,7 +151,7 @@ Every scaffolded feature must satisfy this checklist as a single complete unit b
 - [ ] **1. Request/Response DTOs:** Sealed records with primary constructors; no domain entity leakage.
 - [ ] **2. Validation:** Input validation (FluentValidation or DataAnnotations) handling edge cases.
 - [ ] **3. Business Logic & Ownership:** Dedicated handler or use case executing domain behavior cleanly and enforcing resource ownership (current user/tenant filter or `IAuthorizationService`) for user-owned data.
-- [ ] **4. Typed Minimal API Endpoint:** Route defined with typed results (`Results<Ok<T>, ProblemHttpResult>`).
+- [ ] **4. Typed Endpoint / Action:** Minimal API route with typed results (`Results<Ok<T>, ProblemHttpResult>`), or `ActionResult<T>` Controller action in existing Controller-based repos.
 - [ ] **5. Cancellation:** `CancellationToken` explicitly passed to all async methods and database calls.
 - [ ] **6. Persistence:** Direct EF Core query/mapping without generic repository wrappers.
 - [ ] **7. Error Handling:** Expected failures map explicitly to RFC 7807/9457 `ProblemDetails`.

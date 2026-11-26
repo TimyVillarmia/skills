@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.4] - 2026-11-26
+
+### Fixed
+- `dotnet` (`SKILL.md`): Corrected `.NET 9` end-of-support date to May 12, 2026 (while `.NET 8` LTS ended November 10, 2026).
+- `dotnet-scaffold` (`SKILL.md`): Aligned Step 5 and Checklist item #4 to support `ActionResult<T>` Controller actions in existing Controller-based brownfield repos instead of forcing Minimal APIs.
+
+### Changed
+- `dotnet` (`references/api.md`, `references/security.md`), `dotnet-scaffold/assets/.editorconfig`: Updated Controller/Minimal API guidance and editorconfig rules.
+
 ## [1.4.3] - 2026-11-26
 
 ### Added

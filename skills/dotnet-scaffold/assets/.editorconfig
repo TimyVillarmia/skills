@@ -28,6 +28,7 @@ indent_size = 2
 [*.{json,md,yml,yaml}]
 indent_size = 2
 
-# EF Core CLI-generated migrations emit constant string[] arrays
+# EF Core CLI-generated migrations emit UTF-8 BOM and constant string[] arrays
 [**/Migrations/*.cs]
+charset = utf-8-bom
 dotnet_diagnostic.CA1861.severity = none
