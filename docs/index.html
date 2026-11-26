@@ -10,7 +10,7 @@
     } catch (e) {}
   </script>
   <title>Everyday .NET 10 Skills for Coding Agents | TimyVillarmia/skills</title>
-  <meta name="description" content="Everyday .NET 10 skills for coding agents. Catches deprecated APIs, commercial NuGet traps, and production footguns across Antigravity, Claude Code, Cursor, and Copilot.">
+  <meta name="description" content="Everyday .NET 10 skills for coding agents. Scaffold .slnx solutions, write C# 14 APIs and EF Core cleanly, and review PRs without re-explaining your standards.">
   <link rel="icon" type="image/png" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,8 @@
     <div class="container header-inner" id="header-inner">
       <a class="brand" href="#top">
         <span class="brand-mark">
-          <img src="assets/logo.png" alt=".NET Engineering Skills logo" width="36" height="36">
+          <img class="mascot-img" src="assets/logo.png" alt=".NET Engineering Skills logo" width="36" height="36">
+          <span class="mascot-fx" aria-hidden="true">&lt;/&gt;</span>
         </span>
         <span class="brand-name">.NET Engineering Skills</span>
       </a>
@@ -75,9 +76,13 @@
   <main id="main">
     <section class="hero" id="top">
       <div class="container hero-inner">
+        <span class="hero-mark" tabindex="0" role="img" aria-label="Developer mascot typing on a laptop">
+          <img class="mascot-img" src="assets/logo.png" alt="" width="72" height="72">
+          <span class="mascot-fx" aria-hidden="true">&lt;/&gt;</span>
+        </span>
         <h1 class="hero-title">Everyday .NET 10 skills for coding agents.</h1>
         <p class="hero-subtitle">
-          Catches deprecated APIs, commercial NuGet traps, and production footguns across Antigravity, Claude Code, Cursor, and Copilot.
+          Scaffold <code>.slnx</code> solutions, write C# 14 APIs and EF Core cleanly, and review PRs without re-explaining your standards.
         </p>
 
         <div class="install-workbench" aria-label="Quick installation">
@@ -95,7 +100,7 @@
           <div class="panels-stack" id="install-panels">
             <div role="tabpanel" aria-labelledby="tab-agy" tabindex="0" data-install-panel="agy">
               <div class="tabpanel-inner">
-                <pre><code>agy plugin install https://github.com/TimyVillarmia/skills</code></pre>
+                <pre><code class="cmd-line">agy plugin install https://github.com/TimyVillarmia/skills</code></pre>
                 <p class="workbench-note">Installs <code>dotnet</code>, <code>fastendpoints</code>, and <code>dotnet-scaffold</code> as an Antigravity plugin.</p>
               </div>
             </div>
@@ -112,7 +117,7 @@ npx skills add TimyVillarmia/skills/skills/dotnet-scaffold</code></pre>
             </div>
             <div role="tabpanel" aria-labelledby="tab-git" hidden="until-found" data-install-panel="git">
               <div class="tabpanel-inner">
-                <pre><code>git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal</code></pre>
+                <pre><code class="cmd-line">git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal</code></pre>
                 <p class="workbench-note">Clone into <code>.agents/skills/</code> (workspace) or <code>~/.agents/skills/</code> (global).</p>
               </div>
             </div>
@@ -121,7 +126,7 @@ npx skills add TimyVillarmia/skills/skills/dotnet-scaffold</code></pre>
         </div>
 
         <div class="hero-action">
-          <a class="primary-cta" href="https://github.com/TimyVillarmia/skills" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+          <a class="primary-cta" href="#benchmark">See the 3/12 → 12/12 benchmark</a>
         </div>
       </div>
     </section>

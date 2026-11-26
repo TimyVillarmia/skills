@@ -178,17 +178,13 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* Non-color branching for logo inversion and theme toggle icons */
+/* Non-color branching for theme toggle icons */
 .theme-option-light {
   display: none;
 }
 
 .theme-option-dark {
   display: inline-flex;
-}
-
-:root:has(> head > meta[name="color-scheme"][content="dark"]) .brand-mark img {
-  filter: invert(1);
 }
 
 :root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-option-dark {
@@ -200,10 +196,6 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not(:has(> head > meta[name="color-scheme"][content="light"])) .brand-mark img {
-    filter: invert(1);
-  }
-
   :root:not(:has(> head > meta[name="color-scheme"][content="light"])) .theme-option-dark {
     display: none;
   }
@@ -396,13 +388,14 @@ pre code {
 }
 
 .brand-mark {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   inline-size: 36px;
   block-size: 36px;
   border-radius: 50%;
-  background: var(--bg-page);
+  background: #ffffff;
   border: 1px solid var(--border-hairline);
   overflow: hidden;
 }
@@ -550,8 +543,25 @@ pre code {
 
 /* Hero */
 .hero {
-  padding-block-start: clamp(3rem, 7vw, 5.5rem);
-  padding-block-end: clamp(3.5rem, 6vw, 5rem);
+  position: relative;
+  margin-block-start: -4rem;
+  padding-block-start: calc(4rem + clamp(2rem, 5vw, 3.5rem));
+  padding-block-end: clamp(2.5rem, 4.5vw, 3.75rem);
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--border-hairline) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-hairline) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 35%, #000 30%, transparent 100%);
 }
 
 .hero-inner {
@@ -559,6 +569,74 @@ pre code {
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+
+.hero-mark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 72px;
+  block-size: 72px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--border-hairline);
+  overflow: hidden;
+  margin-block-end: 1.25rem;
+  cursor: pointer;
+}
+
+.mascot-img {
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+  transform-origin: 50% 65%;
+}
+
+.mascot-fx {
+  position: absolute;
+  inset-block-start: 14%;
+  inset-inline-end: 14%;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.brand-mark .mascot-fx {
+  font-size: 0.5rem;
+}
+
+@keyframes mascot-funny-type {
+  0% { transform: rotate(0deg) translateY(0) scale(1, 1); }
+  20% { transform: rotate(-6deg) translateY(-2px) scale(0.97, 1.03); }
+  40% { transform: rotate(5deg) translateY(1.5px) scale(1.03, 0.96); }
+  60% { transform: rotate(-5deg) translateY(-1.5px) scale(0.98, 1.02); }
+  80% { transform: rotate(6deg) translateY(1px) scale(1.02, 0.97); }
+  100% { transform: rotate(0deg) translateY(0) scale(1, 1); }
+}
+
+@keyframes mascot-fx-pop {
+  0% { opacity: 0; transform: translate(0, 4px) scale(0.8); }
+  40% { opacity: 1; transform: translate(2px, -4px) rotate(8deg) scale(1.05); }
+  100% { opacity: 0; transform: translate(4px, -9px) rotate(12deg) scale(0.95); }
+}
+
+.brand:hover .mascot-img,
+.brand:focus-visible .mascot-img,
+.hero-mark:hover .mascot-img,
+.hero-mark:focus-visible .mascot-img {
+  animation: mascot-funny-type 420ms ease-in-out infinite;
+}
+
+.brand:hover .mascot-fx,
+.brand:focus-visible .mascot-fx,
+.hero-mark:hover .mascot-fx,
+.hero-mark:focus-visible .mascot-fx {
+  animation: mascot-fx-pop 480ms ease-out infinite;
 }
 
 .hero-title {
@@ -581,12 +659,18 @@ pre code {
 .install-workbench {
   inline-size: 100%;
   max-inline-size: 820px;
-  margin-block-start: 2.25rem;
+  margin-block-start: 1.75rem;
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   text-align: start;
   overflow: hidden;
+}
+
+.cmd-line::before {
+  content: "$ ";
+  color: var(--accent);
+  user-select: none;
 }
 
 .workbench-header {
@@ -755,7 +839,7 @@ pre code {
 }
 
 .hero-action {
-  margin-block-start: 1.75rem;
+  margin-block-start: 1.35rem;
 }
 
 .primary-cta {
