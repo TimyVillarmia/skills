@@ -6,6 +6,8 @@
 
 Everyday agent skills for .NET 10 backend engineering, scaffolding, and architecture. Works with Antigravity, Claude Code, Cursor, GitHub Copilot, and other tools that support the Agent Skills format.
 
+**[Live showcase & A/B benchmark](https://timyvillarmia.github.io/skills/)**
+
 ## Installation
 
 ### Antigravity (`agy` CLI)

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://timyvillarmia.github.io/skills/sitemap.xml
