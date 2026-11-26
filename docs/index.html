@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark";
+    } catch (e) {}
+  </script>
+  <title>Everyday .NET 10 Skills for Coding Agents | TimyVillarmia/skills</title>
+  <meta name="description" content="Everyday .NET 10 skills for coding agents. Catches deprecated APIs, commercial NuGet traps, and production footguns across Antigravity, Claude Code, Cursor, and Copilot.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header" id="site-header">
+    <div class="container header-inner" id="header-inner">
+      <a class="brand" href="#top">
+        <span class="brand-mark">
+          <img src="assets/logo.png" alt=".NET Engineering Skills logo" width="36" height="36">
+        </span>
+        <span class="brand-name">.NET Engineering Skills</span>
+      </a>
+
+      <div class="header-controls">
+        <nav class="site-nav" aria-label="Primary">
+          <button
+            class="menu-button"
+            type="button"
+            popovertarget="site-menu"
+            popovertargetaction="toggle"
+            aria-controls="site-menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <span>Menu</span>
+          </button>
+
+          <ul id="site-menu" class="site-menu" popover="auto">
+            <li><a href="#why">Why Install</a></li>
+            <li><a href="#benchmark">Comparison</a></li>
+            <li><a href="#architecture">How It Works</a></li>
+            <li><a href="#catalog">Catalog</a></li>
+            <li><a href="https://github.com/TimyVillarmia/skills" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+          </ul>
+        </nav>
+
+        <button type="button" class="theme-toggle" id="theme-toggle">
+          <span class="theme-option-dark">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+            </svg>
+            <span class="sr-only">Switch to dark theme</span>
+          </span>
+          <span class="theme-option-light">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <span class="sr-only">Switch to light theme</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container hero-inner">
+        <h1 class="hero-title">Everyday .NET 10 skills for coding agents.</h1>
+        <p class="hero-subtitle">
+          Catches deprecated APIs, commercial NuGet traps, and production footguns across Antigravity, Claude Code, Cursor, and Copilot.
+        </p>
+
+        <div class="install-workbench" aria-label="Quick installation">
+          <div class="workbench-header">
+            <div class="tablist" focusgroup="tablist nomemory" role="tablist" aria-label="Installation method" id="install-tabs">
+              <button type="button" role="tab" id="tab-agy" aria-selected="true" focusgroupstart data-install="agy">Antigravity CLI</button>
+              <button type="button" role="tab" id="tab-npx" aria-selected="false" data-install="npx">skills.sh (npx)</button>
+              <button type="button" role="tab" id="tab-git" aria-selected="false" data-install="git">Manual Clone</button>
+            </div>
+            <button type="button" class="copy-btn" id="install-copy" aria-label="Copy install command">
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+
+          <div class="panels-stack" id="install-panels">
+            <div role="tabpanel" aria-labelledby="tab-agy" tabindex="0" data-install-panel="agy">
+              <div class="tabpanel-inner">
+                <pre><code>agy plugin install https://github.com/TimyVillarmia/skills</code></pre>
+                <p class="workbench-note">Installs <code>dotnet</code>, <code>fastendpoints</code>, and <code>dotnet-scaffold</code> as an Antigravity plugin.</p>
+              </div>
+            </div>
+            <div role="tabpanel" aria-labelledby="tab-npx" hidden="until-found" data-install-panel="npx">
+              <div class="tabpanel-inner">
+                <pre><code>npx skills add TimyVillarmia/skills
+
+# Or add a single skill:
+npx skills add TimyVillarmia/skills/skills/dotnet
+npx skills add TimyVillarmia/skills/skills/fastendpoints
+npx skills add TimyVillarmia/skills/skills/dotnet-scaffold</code></pre>
+                <p class="workbench-note">Works with Antigravity, Claude Code, Cursor, GitHub Copilot, and any Agent Skills tool.</p>
+              </div>
+            </div>
+            <div role="tabpanel" aria-labelledby="tab-git" hidden="until-found" data-install-panel="git">
+              <div class="tabpanel-inner">
+                <pre><code>git clone git@github.com:TimyVillarmia/skills.git ~/.agents/skills/personal</code></pre>
+                <p class="workbench-note">Clone into <code>.agents/skills/</code> (workspace) or <code>~/.agents/skills/</code> (global).</p>
+              </div>
+            </div>
+          </div>
+          <span class="sr-only" id="copy-status" aria-live="polite"></span>
+        </div>
+
+        <div class="hero-action">
+          <a class="primary-cta" href="https://github.com/TimyVillarmia/skills" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" id="why">
+      <div class="container">
+        <h2 class="section-title">Your LLM knows C#. It still ships these traps.</h2>
+        <p class="section-lead">Four .NET 10 defaults coding agents still get wrong without explicit guardrails.</p>
+
+        <div class="why-grid">
+          <div class="why-item">
+            <h3>Commercial NuGet traps</h3>
+            <dl class="why-diff">
+              <div class="why-row why-row-fail">
+                <dt>Default</dt>
+                <dd>Adds <code>MediatR</code>, <code>AutoMapper</code>, <code>FluentAssertions</code>, <code>MassTransit</code> (paid &gt;= 13/15/8/9)</dd>
+              </div>
+              <div class="why-row why-row-pass">
+                <dt>With Skill</dt>
+                <dd>Direct handlers, static <code>From</code> / <code>Riok.Mapperly</code>, <code>MSTest.Sdk</code> / <code>Shouldly</code>, <code>WolverineFx</code></dd>
+              </div>
+            </dl>
+            <a class="why-link" href="#benchmark" data-jump-scenario="packages">See Packages &amp; Slice diff</a>
+          </div>
+
+          <div class="why-item">
+            <h3>.NET 10 deprecations &amp; token leaks</h3>
+            <dl class="why-diff">
+              <div class="why-row why-row-fail">
+                <dt>Default</dt>
+                <dd>Deprecated <code>.WithOpenApi()</code> (<code>ASPDEPR002</code>), Scalar routes tokens via <code>proxy.scalar.com</code></dd>
+              </div>
+              <div class="why-row why-row-pass">
+                <dt>With Skill</dt>
+                <dd>Built-in <code>AddOpenApi()</code> Bearer transformer, <code>ProxyUrl = null</code>, <code>IExceptionHandler</code></dd>
+              </div>
+            </dl>
+            <a class="why-link" href="#benchmark" data-jump-scenario="openapi">See Minimal API &amp; OpenAPI diff</a>
+          </div>
+
+          <div class="why-item">
+            <h3>Startup races &amp; captive scopes</h3>
+            <dl class="why-diff">
+              <div class="why-row why-row-fail">
+                <dt>Default</dt>
+                <dd><code>db.Database.MigrateAsync()</code> in <code>Program.cs</code>, <code>UseInMemoryDatabase</code>, static <code>IOptions&lt;T&gt;</code></dd>
+              </div>
+              <div class="why-row why-row-pass">
+                <dt>With Skill</dt>
+                <dd>Out-of-band <code>efbundle</code>, <code>Testcontainers</code> + <code>Respawn</code>, <code>IOptionsMonitor&lt;T&gt;</code> + <code>[OptionsValidator]</code></dd>
+              </div>
+            </dl>
+            <a class="why-link" href="#benchmark" data-jump-scenario="efcore">See EF Core &amp; Testing diff</a>
+          </div>
+
+          <div class="why-item">
+            <h3>Role-string auth &amp; IDOR leaks</h3>
+            <dl class="why-diff">
+              <div class="why-row why-row-fail">
+                <dt>Default</dt>
+                <dd><code>RequireRole("Admin")</code>, no <code>FallbackPolicy</code>, unscoped queries (403 cross-tenant oracle)</dd>
+              </div>
+              <div class="why-row why-row-pass">
+                <dt>With Skill</dt>
+                <dd>Default-deny <code>FallbackPolicy</code>, <code>orders:delete</code> permissions, EF Core 10 <code>TenantFilter</code></dd>
+              </div>
+            </dl>
+            <a class="why-link" href="#benchmark" data-jump-scenario="auth">See Auth &amp; Permissions diff</a>
+          </div>
+        </div>
+
+        <p class="why-footnote">
+          Brownfield-safe: inspects existing <code>.csproj</code> and <code>.slnx</code> conventions first instead of rewriting your codebase style.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" id="benchmark">
+      <div class="container">
+        <h2 class="section-title">Without Skill vs. With Skill</h2>
+        <p class="section-lead">
+          Same model, same .NET 10 Orders slice prompt: default knowledge vs. <code>skills/dotnet/SKILL.md</code>.
+        </p>
+
+        <div class="scenario-controls">
+          <div class="tablist scenario-tabs" focusgroup="tablist nomemory" role="tablist" aria-label="Benchmark scenarios" id="scenario-tabs"></div>
+        </div>
+
+        <div class="panels-stack" id="scenario-panels"></div>
+
+        <div class="scorecard-wrap">
+          <div class="scorecard-header">
+            <h3 class="scorecard-title" id="scorecard-caption">Guardrail scorecard</h3>
+            <p class="scorecard-totals">Baseline: 3 / 12 vs. With dotnet Skill: 12 / 12</p>
+          </div>
+          <div tabindex="0" role="region" aria-labelledby="scorecard-caption" class="table-wrapper">
+            <table class="data-table scorecard-table">
+              <caption class="sr-only">Guardrail scorecard comparing Baseline and With dotnet Skill</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Engineering guardrail</th>
+                  <th scope="col">Baseline</th>
+                  <th scope="col">With Skill</th>
+                  <th scope="col">Observed evidence</th>
+                </tr>
+              </thead>
+              <tbody id="scorecard-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt defer-section" id="architecture">
+      <div class="container">
+        <h2 class="section-title">How it works</h2>
+        <p class="section-lead">
+          Progressive disclosure keeps the base prompt small and loads domain rules only when needed.
+        </p>
+
+        <div class="diagram-frame">
+          <svg class="arch-diagram" viewBox="0 0 920 260" role="img" aria-labelledby="arch-diagram-title">
+            <title id="arch-diagram-title">Progressive disclosure flow: Control Plane routes to 18 references, live Microsoft Learn lookup, or executable dotnet-scaffold templates</title>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" class="svg-arrow-head"></path>
+              </marker>
+            </defs>
+
+            <rect x="20" y="75" width="180" height="110" rx="8" class="svg-box"></rect>
+            <text x="110" y="112" text-anchor="middle" class="svg-title">Agent Prompt</text>
+            <text x="110" y="136" text-anchor="middle" class="svg-sub">Task classification</text>
+            <text x="110" y="156" text-anchor="middle" class="svg-sub">On-demand loading</text>
+
+            <line x1="200" y1="130" x2="247" y2="130" class="svg-line" marker-end="url(#arrow)"></line>
+
+            <rect x="255" y="55" width="270" height="150" rx="8" class="svg-box svg-box-accent"></rect>
+            <text x="390" y="92" text-anchor="middle" class="svg-title">SKILL.md Control Plane</text>
+            <text x="390" y="118" text-anchor="middle" class="svg-sub">dotnet: 121 lines (~2,856 tokens)</text>
+            <text x="390" y="140" text-anchor="middle" class="svg-sub">fastendpoints: 174 lines</text>
+            <text x="390" y="162" text-anchor="middle" class="svg-sub">dotnet-scaffold: 168 lines</text>
+            <text x="390" y="186" text-anchor="middle" class="svg-sub">Guardrails + NuGet license check</text>
+
+            <line x1="525" y1="88" x2="602" y2="46" class="svg-line" marker-end="url(#arrow)"></line>
+            <line x1="525" y1="130" x2="602" y2="130" class="svg-line" marker-end="url(#arrow)"></line>
+            <line x1="525" y1="172" x2="602" y2="214" class="svg-line" marker-end="url(#arrow)"></line>
+
+            <rect x="610" y="14" width="290" height="64" rx="8" class="svg-box"></rect>
+            <text x="755" y="42" text-anchor="middle" class="svg-title">18 Focused References</text>
+            <text x="755" y="62" text-anchor="middle" class="svg-sub">AOT, EF Core, RBAC, testing</text>
+
+            <rect x="610" y="98" width="290" height="64" rx="8" class="svg-box"></rect>
+            <text x="755" y="126" text-anchor="middle" class="svg-title">Microsoft Learn Lookup</text>
+            <text x="755" y="146" text-anchor="middle" class="svg-sub">microsoft-learn MCP or learn-cli</text>
+
+            <rect x="610" y="182" width="290" height="64" rx="8" class="svg-box"></rect>
+            <text x="755" y="210" text-anchor="middle" class="svg-title">Executable Templates</text>
+            <text x="755" y="230" text-anchor="middle" class="svg-sub">scripts/scaffold.cs + .slnx / CPM</text>
+          </svg>
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-item">
+            <h3>Small control plane</h3>
+            <p>
+              <code>SKILL.md</code> (121 lines) routes each task to only the references it needs.
+            </p>
+          </div>
+          <div class="arch-item">
+            <h3>18 focused references</h3>
+            <p>
+              Local rules cover license changes, <code>.NET 10</code> breaking changes, Native AOT, EF Core, RBAC, and testing.
+            </p>
+          </div>
+          <div class="arch-item">
+            <h3>Live docs + real templates</h3>
+            <p>
+              Queries Microsoft Learn (<code>microsoft-learn</code> MCP or <code>npx @microsoft/learn-cli</code>) for version-specific SDK details, and scaffolds <code>.slnx</code> solutions with executable C# (<code>dotnet-scaffold</code>).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section defer-section" id="catalog">
+      <div class="container">
+        <h2 class="section-title" id="catalog-caption">Skills catalog</h2>
+        <p class="section-lead">
+          18 <code>dotnet</code> references, 5 <code>fastendpoints</code> references, and <code>dotnet-scaffold</code> assets linked straight to GitHub.
+        </p>
+
+        <div class="catalog-toolbar">
+          <div class="tablist" focusgroup="tablist nomemory" role="tablist" aria-label="Filter catalog by skill" id="catalog-filters">
+            <button type="button" role="tab" aria-selected="true" focusgroupstart data-filter="all">All (26)</button>
+            <button type="button" role="tab" aria-selected="false" data-filter="dotnet">dotnet (18)</button>
+            <button type="button" role="tab" aria-selected="false" data-filter="fastendpoints">fastendpoints (5)</button>
+            <button type="button" role="tab" aria-selected="false" data-filter="dotnet-scaffold">dotnet-scaffold (3)</button>
+          </div>
+          <div class="search-wrap">
+            <label class="sr-only" for="catalog-search">Filter catalog by keyword</label>
+            <input
+              type="search"
+              id="catalog-search"
+              class="search-input"
+              placeholder="Filter references (e.g. openapi, efcore, aot)..."
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div tabindex="0" role="region" aria-labelledby="catalog-caption" class="table-wrapper">
+          <table class="data-table catalog-table">
+            <caption class="sr-only">Repository catalog of skills, reference guides, and scaffolding assets</caption>
+            <thead>
+              <tr>
+                <th scope="col">Skill</th>
+                <th scope="col">File / Component</th>
+                <th scope="col">Scope</th>
+                <th scope="col">Source</th>
+              </tr>
+            </thead>
+            <tbody id="catalog-body"></tbody>
+          </table>
+          <p class="empty-state" id="catalog-empty" hidden>No matching references found.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">TimyVillarmia/skills</span>
+        <span class="footer-sep" aria-hidden="true">/</span>
+        <span>MIT License</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/TimyVillarmia/skills" target="_blank" rel="noopener noreferrer">Repository</a>
+        <a href="https://github.com/MicrosoftDocs/mcp" target="_blank" rel="noopener noreferrer">Microsoft Learn MCP</a>
+        <a href="https://github.com/microsoft/aspire" target="_blank" rel="noopener noreferrer">Aspire Skills</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
 
 # .NET Engineering Agent Skills
 
-Agent skills for .NET software engineering and architecture. Works with Antigravity, Claude Code, Cursor, GitHub Copilot, and other tools that support the Agent Skills format.
+Everyday agent skills for .NET 10 backend engineering, scaffolding, and architecture. Works with Antigravity, Claude Code, Cursor, GitHub Copilot, and other tools that support the Agent Skills format.
 
 ## Installation
 
